@@ -1,0 +1,12 @@
+{application,dbus,
+ [{description,"An Erlang binding for libdbus"},
+  {vsn,"git"},
+  {registered,[]},
+  {applications,[kernel,stdlib]},
+  {env,[]},
+
+  %% hex.pm packaging:
+  {licenses, ["Apache 2.0"]},
+  {maintainers, ["Helium"]},
+  {links, [{"Github", "https://github.com/helium/erl-dbus"}]}
+ ]}.
