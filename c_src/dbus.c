@@ -14,19 +14,16 @@
  * limitations under the License.
  */
 
-#include "dbus/dbus.h"
-#include "erl_nif.h"
-#include <stdbool.h>
-#include <stdio.h>
+#include "ebus_shared.h"
+#include "ebus_message.h"
 #include <string.h>
 
 
 static ErlNifResourceType * DBUS_CONNECTION_RESOURCE;
 
-static ERL_NIF_TERM ATOM_OK;
-static ERL_NIF_TERM ATOM_ERROR;
-static ERL_NIF_TERM ATOM_TRUE;
-static ERL_NIF_TERM ATOM_FALSE;
+ERL_NIF_TERM ATOM_OK;
+ERL_NIF_TERM ATOM_ERROR;
+ERL_NIF_TERM ATOM_ENOMEM;
 
 typedef struct
 {
@@ -89,17 +86,6 @@ erl_bus(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
     dbus_connection_set_exit_on_disconnect(connection, FALSE);
     return enif_make_tuple2(env, ATOM_OK, mk_dbus_connection(env, connection));
 }
-
-#define GET_STR(N, A)                                                          \
-    unsigned N##_len;                                                          \
-    if (!enif_get_list_length(env, A, &N##_len))                               \
-    {                                                                          \
-        return enif_make_badarg(env);                                          \
-    }                                                                          \
-                                                                               \
-    char N[N##_len + 1];                                                       \
-    enif_get_string(env, A, N, N##_len + 1, ERL_NIF_LATIN1);
-
 
 #define CHECK_INT_ERR(F)                                                       \
     {                                                                          \
@@ -223,7 +209,9 @@ static ErlNifFunc nif_funcs[] =
      {"unique_name", 1, erl_bus_unique_name, 0},
      {"request_name", 3, erl_bus_request_name, 0},
      {"release_name", 2, erl_bus_release_name, 0},
-     {"add_match", 2, erl_bus_add_match, ERL_NIF_DIRTY_JOB_IO_BOUND}};
+     {"add_match", 2, erl_bus_add_match, ERL_NIF_DIRTY_JOB_IO_BOUND},
+     EBUS_MESSAGE_FUNCS
+    };
 
 #define ATOM(Id, Value)                                                        \
     {                                                                          \
@@ -251,8 +239,10 @@ load(ErlNifEnv * env, void ** priv_data, ERL_NIF_TERM load_info)
 
     ATOM(ATOM_OK, "ok");
     ATOM(ATOM_ERROR, "error");
-    ATOM(ATOM_TRUE, "true");
-    ATOM(ATOM_FALSE, "false");
+    ATOM(ATOM_ENOMEM, "enomem");
+
+    ebus_message_load(env);
+
     return 0;
 }
 

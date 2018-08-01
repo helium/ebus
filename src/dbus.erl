@@ -6,9 +6,11 @@
 
 -export([bus/0, bus/1, unique_name/1,
          request_name/3, release_name/2,
-         add_match/2]).
+         add_match/2,
+         message_new_signal/3]).
 
 -type dbus() :: reference().
+-type dbus_message() :: reference().
 -type dbus_type() :: ?BUS_SESSION | ?BUS_SYSTEM | ?BUS_STARTER.
 -type request_name_flags() :: pos_integer().
 -type request_name_reply() :: ?BUS_REQUEST_NAME_REPLY_PRIMARY_OWNER
@@ -48,6 +50,10 @@ release_name(_, _) ->
 
 -spec add_match(dbus(), Rule::string()) -> ok | {error, string()}.
 add_match(_, _) ->
+    not_loaded(?LINE).
+
+-spec message_new_signal(Path::string(), IFace::string(), Name::string()) -> {ok, dbus_message()}.
+message_new_signal(_,_,_) ->
     not_loaded(?LINE).
 
 init() ->
