@@ -1,4 +1,4 @@
--module(dbus).
+-module(ebus).
 
 -on_load(init/0).
 
@@ -45,7 +45,7 @@
               request_name_opts/0, request_name_reply/0,
               release_name_reply/0]).
 
--define(APPNAME, dbus).
+-define(APPNAME, ebus).
 -define(LIBNAME, 'ebus').
 
 -define(BUS_SESSION, 0).

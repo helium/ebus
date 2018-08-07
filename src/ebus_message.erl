@@ -1,18 +1,18 @@
--module(dbus_message).
+-module(ebus_message).
 
 -export([new_call/4, new_signal/3, append_args/3]).
 
--spec new_signal(Path::string(), IFace::string(), Name::string()) -> {ok, dbus:message()}.
+-spec new_signal(Path::string(), IFace::string(), Name::string()) -> {ok, ebus:message()}.
 new_signal(Path, IFace, Name) ->
-    dbus:message_new_signal(Path, IFace, Name).
+    ebus:message_new_signal(Path, IFace, Name).
 
--spec new_call(Dest::string(), Path::string(), IFace::string(), Name::string()) -> {ok, dbus:message()}.
+-spec new_call(Dest::string(), Path::string(), IFace::string(), Name::string()) -> {ok, ebus:message()}.
 new_call(Dest, Path, IFace, Name) ->
-    dbus:message_new_call(Dest, Path, IFace, Name).
+    ebus:message_new_call(Dest, Path, IFace, Name).
 
--spec append_args(dbus:message(), dbus:signature(), [any()]) -> ok | {error, string()}.
+-spec append_args(ebus:message(), ebus:signature(), [any()]) -> ok | {error, string()}.
 append_args(Msg, Signature, Args) when length(Signature) == length(Args) ->
-    dbus:message_append_args(Msg, Signature, Args).
+    ebus:message_append_args(Msg, Signature, Args).
 
 
 

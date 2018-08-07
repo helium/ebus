@@ -1,16 +1,16 @@
-# erl-dbus
+# ebus
 
-The `erl-dbus` library provides an Erlang binding for the canonical
+The `ebus` library provides an Erlang binding for the canonical
 [libdbus](https://cgit.freedesktop.org/dbus/dbus/) IPC mechanism.
 
 
 Install
 ------
 
-Add `erl-dbus` to your `deps` section in `rebar.config`:
+Add `ebus` to your `deps` section in `rebar.config`:
 
 ``` shell
-{deps, [erl-dbus]}.
+{deps, [ebus]}.
 ```
 
 Building
