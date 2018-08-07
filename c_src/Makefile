@@ -3,7 +3,7 @@
 CURDIR := $(shell pwd)
 BASEDIR := $(abspath $(CURDIR)/..)
 
-PROJECT = dbus
+PROJECT = ebus
 
 ERTS_INCLUDE_DIR ?= $(shell erl -noshell -s init stop -eval "io:format(\"~ts/erts-~ts/include/\", [code:root_dir(), erlang:system_info(version)]).")
 ERL_INTERFACE_INCLUDE_DIR ?= $(shell erl -noshell -s init stop -eval "io:format(\"~ts\", [code:lib_dir(erl_interface, include)]).")

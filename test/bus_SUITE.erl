@@ -20,21 +20,20 @@ init_per_testcase(_, Config) ->
 
 bus_test(_Config) ->
     {ok, _} = dbus:bus(),
-    {ok, _} = dbus:bus(?BUS_SESSION),
-    {ok, _} = dbus:bus(?BUS_STARTER),
+    {ok, _} = dbus:bus(session),
+    {ok, _} = dbus:bus(starter),
 
-    {'EXIT', {badarg, _}}= (catch dbus:bus(22)),
+    {'EXIT', {badarg, _}}= (catch dbus:bus(noway)),
 
     ok.
 
 name_test(Config) ->
     B = proplists:get_value(bus, Config),
 
-    {ok, ?BUS_REQUEST_NAME_REPLY_PRIMARY_OWNER} =
-        dbus:request_name(B, "com.helium.test", ?BUS_NAME_FLAG_REPLACE_EXISTING),
+    ok = dbus:request_name(B, "com.helium.test", [{replace_existing, true}]),
 
-    {ok, ?BUS_RELEASE_NAME_REPLY_RELEASED} = dbus:release_name(B, "com.helium.test"),
-    {ok, ?BUS_RELEASE_NAME_REPLY_NON_EXISTENT} = dbus:release_name(B, "com.helium.notthere"),
+    ok = dbus:release_name(B, "com.helium.test"),
+    {error, not_found} = dbus:release_name(B, "com.helium.notthere"),
 
     ok.
 

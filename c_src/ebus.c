@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include "ebus_shared.h"
 #include "ebus_message.h"
+#include "ebus_shared.h"
 #include <string.h>
 
 
@@ -24,6 +24,9 @@ static ErlNifResourceType * DBUS_CONNECTION_RESOURCE;
 ERL_NIF_TERM ATOM_OK;
 ERL_NIF_TERM ATOM_ERROR;
 ERL_NIF_TERM ATOM_ENOMEM;
+ERL_NIF_TERM ATOM_TRUE;
+ERL_NIF_TERM ATOM_FALSE;
+ERL_NIF_TERM ATOM_UNDEFINED;
 
 typedef struct
 {
@@ -62,7 +65,7 @@ get_dbus_connection(ErlNifEnv * env, ERL_NIF_TERM term, DBusConnection ** dest)
 }
 
 static ERL_NIF_TERM
-erl_bus(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
+ebus_get(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
 {
     int bus_type;
     if (argc < 1 || !enif_get_int(env, argv[0], &bus_type) || bus_type < 0
@@ -77,8 +80,7 @@ erl_bus(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
     DBusConnection * connection = dbus_bus_get(bus_type, &error);
     if (dbus_error_is_set(&error))
     {
-        ERL_NIF_TERM message =
-            enif_make_string(env, error.message, ERL_NIF_LATIN1);
+        ERL_NIF_TERM message = enif_make_string(env, error.message, ERL_NIF_LATIN1);
         dbus_error_free(&error);
         return enif_make_tuple2(env, ATOM_ERROR, message);
     }
@@ -87,26 +89,25 @@ erl_bus(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
     return enif_make_tuple2(env, ATOM_OK, mk_dbus_connection(env, connection));
 }
 
-#define CHECK_INT_ERR(F)                                                       \
-    {                                                                          \
-        DBusError error;                                                       \
-        dbus_error_init(&error);                                               \
-        int result = (F);                                                      \
-        if (dbus_error_is_set(&error))                                         \
-        {                                                                      \
-            ERL_NIF_TERM message =                                             \
-                enif_make_string(env, error.message, ERL_NIF_LATIN1);          \
-            dbus_error_free(&error);                                           \
-            return enif_make_tuple2(env, ATOM_ERROR, message);                 \
-        }                                                                      \
-        else                                                                   \
-        {                                                                      \
-            return enif_make_tuple2(env, ATOM_OK, enif_make_int(env, result)); \
-        }                                                                      \
+#define CHECK_INT_ERR(F)                                                                 \
+    {                                                                                    \
+        DBusError error;                                                                 \
+        dbus_error_init(&error);                                                         \
+        int result = (F);                                                                \
+        if (dbus_error_is_set(&error))                                                   \
+        {                                                                                \
+            ERL_NIF_TERM message = enif_make_string(env, error.message, ERL_NIF_LATIN1); \
+            dbus_error_free(&error);                                                     \
+            return enif_make_tuple2(env, ATOM_ERROR, message);                           \
+        }                                                                                \
+        else                                                                             \
+        {                                                                                \
+            return enif_make_tuple2(env, ATOM_OK, enif_make_int(env, result));           \
+        }                                                                                \
     }
 
 static ERL_NIF_TERM
-erl_bus_unique_name(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
+ebus_unique_name(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
 {
     DBusConnection * connection;
     if (argc < 1 || !get_dbus_connection(env, argv[0], &connection))
@@ -119,7 +120,7 @@ erl_bus_unique_name(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
 }
 
 static ERL_NIF_TERM
-erl_bus_release_name(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
+ebus_release_name(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
 {
     if (argc != 2)
     {
@@ -143,7 +144,7 @@ erl_bus_release_name(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
 }
 
 static ERL_NIF_TERM
-erl_bus_request_name(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
+ebus_request_name(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
 {
     if (argc != 3)
     {
@@ -173,7 +174,7 @@ erl_bus_request_name(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
 }
 
 static ERL_NIF_TERM
-erl_bus_add_match(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
+ebus_add_match(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
 {
     if (argc != 2)
     {
@@ -193,8 +194,7 @@ erl_bus_add_match(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
     dbus_bus_add_match(connection, rule, &error);
     if (dbus_error_is_set(&error))
     {
-        ERL_NIF_TERM message =
-            enif_make_string(env, error.message, ERL_NIF_LATIN1);
+        ERL_NIF_TERM message = enif_make_string(env, error.message, ERL_NIF_LATIN1);
         dbus_error_free(&error);
         return enif_make_tuple2(env, ATOM_ERROR, message);
     }
@@ -205,17 +205,18 @@ erl_bus_add_match(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
 }
 
 static ErlNifFunc nif_funcs[] =
-    {{"bus", 1, erl_bus, 0},
-     {"unique_name", 1, erl_bus_unique_name, 0},
-     {"request_name", 3, erl_bus_request_name, 0},
-     {"release_name", 2, erl_bus_release_name, 0},
-     {"add_match", 2, erl_bus_add_match, ERL_NIF_DIRTY_JOB_IO_BOUND},
-     EBUS_MESSAGE_FUNCS
-    };
+    {{"int_bus", 1, ebus_get, 0},
+     {"unique_name", 1, ebus_unique_name, 0},
+     {"int_request_name", 3, ebus_request_name, 0},
+     {"int_release_name", 2, ebus_release_name, 0},
+     {"add_match", 2, ebus_add_match, ERL_NIF_DIRTY_JOB_IO_BOUND},
+     {"message_new_signal", 3, ebus_message_new_signal, 0},
+     {"message_new_call", 4, ebus_message_new_call, 0},
+     {"int_message_append_args", 3, ebus_message_append_args, ERL_NIF_DIRTY_JOB_CPU_BOUND}};
 
-#define ATOM(Id, Value)                                                        \
-    {                                                                          \
-        Id = enif_make_atom(env, Value);                                       \
+#define ATOM(Id, Value)                                                                  \
+    {                                                                                    \
+        Id = enif_make_atom(env, Value);                                                 \
     }
 
 static int
@@ -225,13 +226,9 @@ load(ErlNifEnv * env, void ** priv_data, ERL_NIF_TERM load_info)
     (void)load_info;
 
 
-    int flags                = ERL_NIF_RT_CREATE | ERL_NIF_RT_TAKEOVER;
-    DBUS_CONNECTION_RESOURCE = enif_open_resource_type(env,
-                                                       NULL,
-                                                       "dbus_connection",
-                                                       dbus_connection_dtor,
-                                                       flags,
-                                                       NULL);
+    int flags = ERL_NIF_RT_CREATE | ERL_NIF_RT_TAKEOVER;
+    DBUS_CONNECTION_RESOURCE =
+        enif_open_resource_type(env, NULL, "dbus_connection", dbus_connection_dtor, flags, NULL);
     if (DBUS_CONNECTION_RESOURCE == NULL)
     {
         return -1;
@@ -240,6 +237,9 @@ load(ErlNifEnv * env, void ** priv_data, ERL_NIF_TERM load_info)
     ATOM(ATOM_OK, "ok");
     ATOM(ATOM_ERROR, "error");
     ATOM(ATOM_ENOMEM, "enomem");
+    ATOM(ATOM_TRUE, "true");
+    ATOM(ATOM_FALSE, "false");
+    ATOM(ATOM_UNDEFINED, "undefined");
 
     ebus_message_load(env);
 

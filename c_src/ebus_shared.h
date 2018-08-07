@@ -8,6 +8,9 @@
 extern ERL_NIF_TERM ATOM_OK;
 extern ERL_NIF_TERM ATOM_ERROR;
 extern ERL_NIF_TERM ATOM_ENOMEM;
+extern ERL_NIF_TERM ATOM_TRUE;
+extern ERL_NIF_TERM ATOM_FALSE;
+extern ERL_NIF_TERM ATOM_UNDEFINED;
 
 #define GET_STR(N, A)                                                          \
     unsigned N##_len;                                                          \

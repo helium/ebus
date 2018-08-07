@@ -14,7 +14,7 @@ BinPackParameters: false
 BreakBeforeBinaryOperators: NonAssignment
 BreakBeforeBraces: Allman
 BreakConstructorInitializersBeforeComma: true # Always break constructor initializers before commas and align the commas with the colon.
-ColumnLimit: 80
+ColumnLimit: 90
 ExperimentalAutoDetectBinPacking: false
 IndentWidth: 4
 KeepEmptyLinesAtTheStartOfBlocks: false
