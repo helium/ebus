@@ -17,7 +17,8 @@ Building
 --------
 
 Fork the repo and simply use `make` to build the library. You will
-need `cmake` installed to build the required libdbus package.
+need the `libdbus` development libraries and headers installed on your
+system.
 
 To run the tests run `make test`.
 
