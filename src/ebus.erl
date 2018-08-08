@@ -5,7 +5,7 @@
 -export([bus/0, bus/1, unique_name/1,
          request_name/3, release_name/2,
          add_match/2,
-         message_new_signal/3, message_new_call/4, message_append_args/3]).
+         message_new_signal/3, message_new_call/4, message_append_args/3, message_get_args/1]).
 
 -type connection() :: reference().
 -type message() :: reference().
@@ -133,6 +133,9 @@ message_new_call(_,_,_,_) ->
 message_append_args(Msg, Signature, Args) ->
     int_message_append_args(Msg, lists:flatten(encode_signature(Signature)), Args).
 
+-spec message_get_args(message()) -> {ok, [any()]} | {error, string()}.
+message_get_args(_) ->
+    not_loaded(?LINE).
 %%
 %% Private
 %%

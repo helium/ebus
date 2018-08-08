@@ -4,7 +4,9 @@
 -export([signal_test/1,
          call_test/1,
          arg_int_test/1,
-         arg_array_test/1,
+         arg_array_int_test/1,
+         arg_array_bin_test/1,
+         arg_array_string_test/1,
          arg_string_test/1]).
 
 all() ->
@@ -12,7 +14,9 @@ all() ->
       call_test,
       arg_int_test,
       arg_string_test,
-      arg_array_test
+      arg_array_int_test,
+      arg_array_bin_test,
+      arg_array_string_test
     ].
 
 init_message(Config) ->
@@ -53,8 +57,9 @@ arg_int_test(Config) ->
     M = proplists:get_value(message, Config),
 
     %% basic ints
-    ok = ebus_message:append_args(M, [byte, int16, uint16, int32, uint32, int64, uint64],
-                                  [42, -42, 42, -42, 42, -42, 42]),
+    Arg = [42, -43, 43, -44, 44, -45, 45],
+    ok = ebus_message:append_args(M, [byte, int16, uint16, int32, uint32, int64, uint64], Arg),
+    {ok, Arg} = ebus_message:get_args(M),
 
     %% bounds checking
     {'EXIT', {badarg, _}} = (catch ebus_message:append_args(M, [byte], [500])),
@@ -75,20 +80,38 @@ arg_int_test(Config) ->
 arg_string_test(Config) ->
     M = proplists:get_value(message, Config),
 
-    ok = ebus_message:append_args(M, [string], ["hello"]),
+    Arg = ["hello"],
+    ok = ebus_message:append_args(M, [string], Arg),
+    {ok, Arg} = ebus_message:get_args(M),
 
     {'EXIT', {badarg, _}} = (catch ebus_message:append_args(M, [string], [-1])),
 
     ok.
 
-arg_array_test(Config) ->
+arg_array_int_test(Config) ->
     M = proplists:get_value(message, Config),
 
-    ok = ebus_message:append_args(M, [{array, int16}], [[1, 2, 3, 4]]),
-    ok = ebus_message:append_args(M, [{array, byte}], [<<"hello">>]),
+    IntArgs = [[1, 2, 3, 4]],
+    ok = ebus_message:append_args(M, [{array, int16}], IntArgs),
+    {ok, IntArgs} = ebus_message:get_args(M),
 
-    ok = ebus_message:append_args(M, [{array, byte}], [<<"hello">>]),
+    ok.
 
-    ok = ebus_message:append_args(M, [{array, string}], [["hello", "world"]]),
+arg_array_bin_test(Config) ->
+    M = proplists:get_value(message, Config),
+
+    BinArgs = [<<"hello">>],
+    ok = ebus_message:append_args(M, [{array, byte}], BinArgs),
+    {ok, BinArgs} = ebus_message:get_args(M),
+
+    ok.
+
+
+arg_array_string_test(Config) ->
+    M = proplists:get_value(message, Config),
+
+    ArrArgs =  [["hello", "world"]],
+    ok = ebus_message:append_args(M, [{array, string}], ArrArgs),
+    {ok, ArrArgs} = ebus_message:get_args(M),
 
     ok.

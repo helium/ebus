@@ -212,7 +212,8 @@ static ErlNifFunc nif_funcs[] =
      {"add_match", 2, ebus_add_match, ERL_NIF_DIRTY_JOB_IO_BOUND},
      {"message_new_signal", 3, ebus_message_new_signal, 0},
      {"message_new_call", 4, ebus_message_new_call, 0},
-     {"int_message_append_args", 3, ebus_message_append_args, ERL_NIF_DIRTY_JOB_CPU_BOUND}};
+     {"int_message_append_args", 3, ebus_message_append_args, ERL_NIF_DIRTY_JOB_CPU_BOUND},
+     {"message_get_args", 1, ebus_message_get_args, ERL_NIF_DIRTY_JOB_CPU_BOUND}};
 
 #define ATOM(Id, Value)                                                                  \
     {                                                                                    \
