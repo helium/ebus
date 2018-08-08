@@ -136,7 +136,8 @@ iter_append_dict_entry(ErlNifEnv *               env,
     ret = ebus_message_append_arg(env, key, &sub_appender, &sub_sig_iter, NULL);
     if (ret == TRUE)
     {
-        ret = ebus_message_append_arg(env, key, &sub_appender, &sub_sig_iter, NULL);
+        dbus_signature_iter_next(&sub_sig_iter);
+        ret = ebus_message_append_arg(env, value, &sub_appender, &sub_sig_iter, NULL);
     }
 
     ret = iter_close_container(appender, &sub_appender, (ret == TRUE));

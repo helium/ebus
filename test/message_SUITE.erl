@@ -5,6 +5,7 @@
          call_test/1,
          arg_int_test/1,
          arg_struct_test/1,
+         arg_map_test/1,
          arg_array_int_test/1,
          arg_array_bin_test/1,
          arg_array_string_test/1,
@@ -15,6 +16,7 @@ all() ->
       call_test,
       arg_int_test,
       arg_struct_test,
+      arg_map_test,
       arg_string_test,
       arg_array_int_test,
       arg_array_bin_test,
@@ -96,6 +98,18 @@ arg_struct_test(Config) ->
     Arg = [{401, "hello", <<"world">>}],
     ok = ebus_message:append_args(M, [{struct, [int16, string, {array, byte}]}], Arg),
     {ok, Arg} = ebus_message:get_args(M),
+
+    ok.
+
+arg_map_test(Config) ->
+    M = proplists:get_value(message, Config),
+
+    Arg = [#{"hello" => {42, <<"world">>}}],
+    ok = ebus_message:append_args(M, [{dict, string, {struct, [int16, {array, byte}]}}], Arg),
+    {ok, Arg} = ebus_message:get_args(M),
+
+    {'EXIT', {badarg, _}} = (catch ebus_message:append_args(M, [{dict, string, string}], [#{42 => "hello"}])),
+    {'EXIT', {badarg, _}} = (catch ebus_message:append_args(M, [{dict, string, string}], [#{"hello" => <<"hello">>}])),
 
     ok.
 

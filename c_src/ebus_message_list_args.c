@@ -110,12 +110,16 @@ iter_get_map(ErlNifEnv * env, DBusMessageIter * iter, ERL_NIF_TERM * dest)
 
         if (!ebus_message_get_arg(env, &kv, &key))
         {
+            // Return error
             *dest = key;
             return FALSE;
         }
 
+        dbus_message_iter_next(&kv);
+
         if (!ebus_message_get_arg(env, &kv, &value))
         {
+            // Return error
             *dest = value;
             return FALSE;
         }
