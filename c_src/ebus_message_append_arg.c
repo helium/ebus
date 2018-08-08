@@ -86,28 +86,27 @@ iter_append_struct(ErlNifEnv *               env,
     const ERL_NIF_TERM * entries;
     enif_get_tuple(env, tuple, &arity, &entries);
 
-    for (int i = 0; i < arity; i++)
+    dbus_bool_t more = FALSE;
+    for (int i = 0; i <= arity - 1; i++)
     {
-        dbus_bool_t more;
         ret = ebus_message_append_arg(env, entries[i], &sub_appender, &sub_sig_iter, &more);
         if (!ret)
         {
             break;
         }
-        if (more && (i + 1) == arity)
+        if (more && i == arity)
         {
             // No more in terms but signature declares more
             // {error, struct_type_mismatch}
             ret = FALSE;
             break;
         }
-        else if (!more && i < arity)
-        {
-            // More in terms but no  more in signature
-            // {error, struct_type_mismatch}
-            ret = FALSE;
-            break;
-        }
+    }
+    if (more)
+    {
+        // More in terms but no  more in signature
+        // {error, struct_type_mismatch}
+        ret = FALSE;
     }
 
     ret = iter_close_container(appender, &sub_appender, (ret == TRUE));

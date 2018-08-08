@@ -40,22 +40,35 @@ iter_get_struct(ErlNifEnv * env, DBusMessageIter * iter, ERL_NIF_TERM * dest)
 
     if (!iter_get_list(env, iter, &list))
     {
+        // Copy the error into dest
         *dest = list;
         return FALSE;
     }
 
     unsigned list_len;
     enif_get_list_length(env, list, &list_len);
+    if (list_len == 0) {
+        // No entries in tuple
+        *dest = enif_make_tuple(env, 0);
+        return TRUE;
+    }
 
-    ERL_NIF_TERM *term = enif_alloc(sizeof(ERL_NIF_TERM) * list_len);
-    if (term == NULL) {
+    ERL_NIF_TERM * terms = enif_alloc(sizeof(ERL_NIF_TERM) * list_len);
+    if (terms == NULL)
+    {
         *dest = ATOM_ENOMEM;
         return FALSE;
     }
 
-    *dest = enif_make_tuple_from_array(env, term, list_len);
+    ERL_NIF_TERM term;
+    int i = 0;
+    while (enif_get_list_cell(env, list, &term, &list)) {
+        terms[i++] = term;
+    }
 
-    enif_free(term);
+    *dest = enif_make_tuple_from_array(env, terms, list_len);
+
+    enif_free(terms);
     return TRUE;
 }
 
@@ -63,14 +76,15 @@ static int
 iter_get_binary(ErlNifEnv * env, DBusMessageIter * iter, ERL_NIF_TERM * dest)
 {
     DBusMessageIter sub_iter;
-    int size;
-    void *data;
+    int             size;
+    void *          data;
 
     dbus_message_iter_recurse(iter, &sub_iter);
     dbus_message_iter_get_fixed_array(&sub_iter, &data, &size);
 
-    ErlNifBinary    bin;
-    if (!enif_alloc_binary(size, &bin)) {
+    ErlNifBinary bin;
+    if (!enif_alloc_binary(size, &bin))
+    {
         *dest = ATOM_ENOMEM;
         return FALSE;
     }

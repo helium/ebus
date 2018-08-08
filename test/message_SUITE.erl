@@ -4,6 +4,7 @@
 -export([signal_test/1,
          call_test/1,
          arg_int_test/1,
+         arg_struct_test/1,
          arg_array_int_test/1,
          arg_array_bin_test/1,
          arg_array_string_test/1,
@@ -13,6 +14,7 @@ all() ->
     [ signal_test,
       call_test,
       arg_int_test,
+      arg_struct_test,
       arg_string_test,
       arg_array_int_test,
       arg_array_bin_test,
@@ -85,6 +87,15 @@ arg_string_test(Config) ->
     {ok, Arg} = ebus_message:get_args(M),
 
     {'EXIT', {badarg, _}} = (catch ebus_message:append_args(M, [string], [-1])),
+
+    ok.
+
+arg_struct_test(Config) ->
+    M = proplists:get_value(message, Config),
+
+    Arg = [{401, "hello", <<"world">>}],
+    ok = ebus_message:append_args(M, [{struct, [int16, string, {array, byte}]}], Arg),
+    {ok, Arg} = ebus_message:get_args(M),
 
     ok.
 
