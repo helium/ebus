@@ -1,10 +1,10 @@
 -module(bus_SUITE).
 
 -export([all/0, init_per_testcase/2]).
--export([bus_test/1, name_test/1, match_test/1]).
+-export([bad_bus_test/1, name_test/1, match_test/1]).
 
 all() ->
-    [ bus_test,
+    [ bad_bus_test,
       name_test,
       match_test
     ].
@@ -12,16 +12,13 @@ all() ->
 init_per_testcase(bus_test, Config) ->
     Config;
 init_per_testcase(_, Config) ->
-    {ok, B} = ebus:bus(),
+    {ok, B} = ebus:start_link(),
+    unlink(B),
     [{bus, B} | Config].
 
 
-bus_test(_Config) ->
-    {ok, _} = ebus:bus(),
-    {ok, _} = ebus:bus(session),
-    {ok, _} = ebus:bus(starter),
-
-    {'EXIT', {badarg, _}}= (catch ebus:bus(noway)),
+bad_bus_test(_Config) ->
+    {'EXIT', {badarg, _}}= (catch ebus:start_link(noway)),
 
     ok.
 

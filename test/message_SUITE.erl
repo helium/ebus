@@ -24,7 +24,7 @@ all() ->
     ].
 
 init_message(Config) ->
-    {ok, M} = ebus:message_new_call("test.call.dest", "/test/call/Object", "test.call.Type", "Test"),
+    {ok, M} = ebus_message:new_call("test.call.dest", "/test/call/Object", "test.call.Type", "Test"),
     [{message, M} | Config].
 
 init_per_testcase(signal_test, Config) ->
@@ -37,22 +37,22 @@ init_per_testcase(_, Config) ->
 
 
 signal_test(_Config) ->
-    {ok, _} = ebus:message_new_signal("/test/signal/Object", "test.signal.Type", "Test"),
+    {ok, _} = ebus_message:new_signal("/test/signal/Object", "test.signal.Type", "Test"),
 
-    {'EXIT', {badarg, _}} = (catch ebus:message_new_signal("badpath", "test.signal.Type", "Test")),
-    {'EXIT', {badarg, _}} = (catch ebus:message_new_signal("/test/signal/Object", "bad_if", "Test")),
-    {'EXIT', {badarg, _}} = (catch ebus:message_new_signal("/test/signal/Object", "test.signal.Type", "Bad.Name")),
+    {'EXIT', {badarg, _}} = (catch ebus_message:new_signal("badpath", "test.signal.Type", "Test")),
+    {'EXIT', {badarg, _}} = (catch ebus_message:new_signal("/test/signal/Object", "bad_if", "Test")),
+    {'EXIT', {badarg, _}} = (catch ebus_message:new_signal("/test/signal/Object", "test.signal.Type", "Bad.Name")),
 
     ok.
 
 call_test(_Config) ->
-    {ok, _} = ebus:message_new_call("test.call.dest", "/test/call/Object", "test.call.Type", "Test"),
+    {ok, _} = ebus_message:new_call("test.call.dest", "/test/call/Object", "test.call.Type", "Test"),
     %% {ok, _} = ebus:message_new_call("test.call.dest", "/test/call/Object", undefined, "Test"),
 
-    {'EXIT', {badarg, _}} = (catch ebus:message_new_call("baddest", "/test/call/Object", "test.call.Type", "Test")),
-    {'EXIT', {badarg, _}} = (catch ebus:message_new_call("test.call.dest", "badpath", "test.call.Type", "Test")),
-    {'EXIT', {badarg, _}} = (catch ebus:message_new_call("test.call.dest", "/test/call/Object", "bad_if", "Test")),
-    {'EXIT', {badarg, _}} = (catch ebus:message_new_call("test.call.dest", "/test/call/Object", "test.call.Type", "Bad.Name")),
+    {'EXIT', {badarg, _}} = (catch ebus_message:new_call("baddest", "/test/call/Object", "test.call.Type", "Test")),
+    {'EXIT', {badarg, _}} = (catch ebus_message:new_call("test.call.dest", "badpath", "test.call.Type", "Test")),
+    {'EXIT', {badarg, _}} = (catch ebus_message:new_call("test.call.dest", "/test/call/Object", "bad_if", "Test")),
+    {'EXIT', {badarg, _}} = (catch ebus_message:new_call("test.call.dest", "/test/call/Object", "test.call.Type", "Bad.Name")),
 
     ok.
 

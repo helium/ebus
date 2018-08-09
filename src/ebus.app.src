@@ -2,7 +2,9 @@
  [{description,"An Erlang binding for libdbus"},
   {vsn,"git"},
   {registered,[]},
-  {applications,[kernel,stdlib]},
+  {applications,[kernel,
+                 stdlib,
+                 lager]},
   {env,[]},
 
   %% hex.pm packaging:

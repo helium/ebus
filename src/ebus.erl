@@ -1,14 +1,20 @@
 -module(ebus).
 
--on_load(init/0).
+-behavior(gen_server).
 
--export([bus/0, bus/1, unique_name/1,
+%% gen_server
+-export([start_link/0, start_link/1, init/1,
+         handle_call/3, handle_cast/2, handle_info/2,
+         terminate/2]).
+
+%% API
+-export([unique_name/1,
          request_name/3, release_name/2,
-         add_match/2,
-         message_new_signal/3, message_new_call/4, message_append_args/3, message_get_args/1]).
+         add_match/2]).
 
 -type connection() :: reference().
 -type message() :: reference().
+-type watch() :: reference().
 -type signature() :: [value_type()].
 -type value_type() :: byte
                     | bool
@@ -20,7 +26,7 @@
                     | uint64
                     | double
                     | string
-                    | object_path
+                    | object_pathpe
                     | signature
                     | variant
                     | {array, value_type()}
@@ -45,151 +51,130 @@
               request_name_opts/0, request_name_reply/0,
               release_name_reply/0]).
 
--define(APPNAME, ebus).
--define(LIBNAME, 'ebus').
+-record(state, {
+                connection :: connection(),
+                watches=[] :: [watch()]
+               }).
 
 -define(BUS_SESSION, 0).
 -define(BUS_SYSTEM,  1).
 -define(BUS_STARTER, 2).
 
-%% @doc Allow another service to become the primary owner if requested.
+%% Allow another service to become the primary owner if requested.
 -define(BUS_NAME_FLAG_ALLOW_REPLACEMENT, 1).
-%% @doc Request to replace the current primary owner.
+%% Request to replace the current primary owner.
 -define(BUS_NAME_FLAG_REPLACE_EXISTING,  2).
-%% @doc If we can not become the primary owner do not place us in the queue.
+%% If we can not become the primary owner do not place us in the queue.
 -define(BUS_NAME_FLAG_DO_NOT_QUEUE,      4).
 
-%% @doc  Service has become the primary owner of the requested name.
+%% Service has become the primary owner of the requested name.
 -define(BUS_REQUEST_NAME_REPLY_PRIMARY_OWNER,  1).
-%% @doc  Service could not become the primary owner and has been placed in the queue.
+%% Service could not become the primary owner and has been placed in the queue.
 -define(BUS_REQUEST_NAME_REPLY_IN_QUEUE,       2).
-%% @doc Service is already in the queue.
+%% Service is already in the queue.
 -define(BUS_REQUEST_NAME_REPLY_EXISTS,         3).
-%% @doc Service is already the primary owner.
+%% Service is already the primary owner.
 -define(BUS_REQUEST_NAME_REPLY_ALREADY_OWNER,  4).
 
-%% @doc Service was released from the given name.
+%% Service was released from the given name.
 -define(BUS_RELEASE_NAME_REPLY_RELEASED,       1).
-%% @doc The given name does not exist on the bus.
+%% The given name does not exist on the bus.
 -define(BUS_RELEASE_NAME_REPLY_NON_EXISTENT,   2).
-%% @doc Service is not an owner of the given name.
+%% Service is not an owner of the given name.
 -define(BUS_RELEASE_NAME_REPLY_NOT_OWNER,      3).
 
--spec bus() -> connection().
-bus() ->
-    bus(starter).
+-define(BUS_WATCH_READABLE, 1).
+-define(BUS_WATCH_WRITABLE, 2).
+-define(BUS_WATCH_ERROR,    4).
+-define(BUS_WATCH_HANGUP,   8).
 
--spec bus(bus_type()) -> connection().
-bus(Type) ->
+%% API
+%%
+
+-spec unique_name(pid()) -> string().
+unique_name(Pid) ->
+    gen_server:call(Pid, unique_name).
+
+
+-spec request_name(pid(), Name::string(), Opts::request_name_opts()) -> request_name_reply().
+request_name(Pid, Name, Opts) when is_list(Opts) ->
+    gen_server:call(Pid, {request_name, Name, Opts}).
+
+-spec release_name(pid(), Name::string()) -> release_name_reply().
+release_name(Pid, Name) ->
+    gen_server:call(Pid, {release_name, Name}).
+
+-spec add_match(pid(), Rule::string()) -> ok | {error, string()}.
+add_match(Pid, Rule) ->
+    gen_server:call(Pid, {add_match, Rule}).
+
+
+%% gen_server
+%%
+
+start_link() ->
+    start_link(starter).
+
+start_link(Type) ->
     IntType = case Type of
                   session -> ?BUS_SESSION;
                   system -> ?BUS_SYSTEM;
                   starter -> ?BUS_STARTER;
                   _ -> error(badarg)
               end,
-    int_bus(IntType).
+    gen_server:start_link(?MODULE, [IntType], []).
 
--spec unique_name(connection()) -> string().
-unique_name(_) ->
-    not_loaded(?LINE).
+init([IntType]) ->
+    {ok, Conn} = ebus_nif:bus(IntType, self()),
+    {ok, #state{connection=Conn}}.
 
--spec request_name(connection(), Name::string(), Flags::request_name_opts()) -> request_name_reply().
-request_name(Conn, Name, Opts) when is_list(Opts) ->
+
+handle_call(unique_name, _From, State=#state{connection=Conn}) ->
+    {reply, ebus_nif:unique_name(Conn), State};
+handle_call({request_name, Name, Opts}, _From, State=#state{connection=Conn}) ->
     Flags = lists:foldl(fun({replace_existing, true}, Acc) -> Acc bor ?BUS_NAME_FLAG_REPLACE_EXISTING;
                            ({allow_replacement, true}, Acc) -> Acc bor ?BUS_NAME_FLAG_ALLOW_REPLACEMENT;
-                           ({do_not_queue, true}, Acc) -> Acc bor ?BUS_NAME_FLAG_DO_NOT_QUEUE
+                           ({do_not_queue, true}, Acc) -> Acc bor ?BUS_NAME_FLAG_DO_NOT_QUEUE;
+                           (_, Acc) -> Acc
                         end, 0, Opts),
-    case int_request_name(Conn, Name, Flags) of
-        {ok, ?BUS_REQUEST_NAME_REPLY_PRIMARY_OWNER} -> ok;
-        {ok, ?BUS_REQUEST_NAME_REPLY_IN_QUEUE} -> {error, queued};
-        {ok, ?BUS_REQUEST_NAME_REPLY_EXISTS} -> {error, queued};
-        {ok, ?BUS_REQUEST_NAME_REPLY_ALREADY_OWNER} -> ok;
-        {error, Msg} -> {error, Msg}
-    end.
+    Reply = case ebus_nif:request_name(Conn, Name, Flags) of
+                {ok, ?BUS_REQUEST_NAME_REPLY_PRIMARY_OWNER} -> ok;
+                {ok, ?BUS_REQUEST_NAME_REPLY_IN_QUEUE} -> {error, queued};
+                {ok, ?BUS_REQUEST_NAME_REPLY_EXISTS} -> {error, queued};
+                {ok, ?BUS_REQUEST_NAME_REPLY_ALREADY_OWNER} -> ok;
+                {error, Msg} -> {error, Msg}
+            end,
+    {reply, Reply, State};
+handle_call({release_name, Name}, _From, State=#state{connection=Conn}) ->
+    Reply = case ebus_nif:release_name(Conn, Name) of
+                {ok, ?BUS_RELEASE_NAME_REPLY_RELEASED} -> ok;
+                {ok, ?BUS_RELEASE_NAME_REPLY_NON_EXISTENT} -> {error, not_found};
+                {ok, ?BUS_RELEASE_NAME_REPLY_NOT_OWNER} -> {error, not_owner}
+            end,
+    {reply, Reply, State};
+handle_call({add_match, Rule}, _From, State=#state{connection=Conn}) ->
+    {reply, ebus_nif:add_match(Conn, Rule), State};
+
+handle_call(Msg, _From, State=#state{}) ->
+    lager:warning("Unhandled call ~p", [Msg]),
+    {noreply, State}.
+
+handle_cast(Msg, State=#state{}) ->
+    lager:warning("Unhandled cast ~p", [Msg]),
+    {noreply, State}.
+
+handle_info({add_watch, Watch}, State=#state{watches=Watches}) ->
+    {noreply, State#state{watches=[Watch | Watches]}};
+handle_info({remove_watch, Watch}, State=#state{watches=Watches}) ->
+    NewWatches = lists:filter(fun(W) -> ebus_nif:watch_equals(W, Watch) end,
+                             Watches),
+    {noreply, State#state{watches=NewWatches}};
+handle_info(Msg, State=#state{}) ->
+    lager:warning("Unhandled info ~p", [Msg]),
+    {noreply, State}.
 
 
--spec release_name(connection(), Name::string()) -> release_name_reply().
-release_name(Conn, Name) ->
-    case int_release_name(Conn, Name) of
-        {ok, ?BUS_RELEASE_NAME_REPLY_RELEASED} -> ok;
-        {ok, ?BUS_RELEASE_NAME_REPLY_NON_EXISTENT} -> {error, not_found};
-        {ok, ?BUS_RELEASE_NAME_REPLY_NOT_OWNER} -> {error, not_owner}
-    end.
-
-
--spec add_match(connection(), Rule::string()) -> ok | {error, string()}.
-add_match(_,_) ->
-    not_loaded(?LINE).
-
--spec message_new_signal(Path::string(), IFace::string(), Name::string()) -> {ok, message()}.
-message_new_signal(_,_,_) ->
-    not_loaded(?LINE).
-
--spec message_new_call(Dest::string(), Path::string(), IFace::string(), Name::string()) -> {ok, message()}.
-message_new_call(_,_,_,_) ->
-    not_loaded(?LINE).
-
--spec message_append_args(message(), Signature::string(), Args::[any()]) -> ok | {error, string()}.
-message_append_args(Msg, Signature, Args) ->
-    int_message_append_args(Msg, lists:flatten(encode_signature(Signature)), Args).
-
--spec message_get_args(message()) -> {ok, [any()]} | {error, string()}.
-message_get_args(_) ->
-    not_loaded(?LINE).
-%%
-%% Private
-%%
-
--spec int_message_append_args(message(), Signature::string(), Args::[any()]) -> ok | {error, string()}.
-int_message_append_args(_, _, _) ->
-    not_loaded(?LINE).
-
--spec int_bus(pos_integer()) -> connection().
-int_bus(_) ->
-    not_loaded(?LINE).
-
--spec int_request_name(connection(), Name::string(), Flags::pos_integer())
-                      -> {error, string()} | {ok, pos_integer()}.
-int_request_name(_, _, _) ->
-    not_loaded(?LINE).
-
-
--spec int_release_name(connection(), Name::string()) -> {ok, pos_integer()} | {error, string()}.
-int_release_name(_, _) ->
-    not_loaded(?LINE).
-
--spec encode_signature(dbus:signature()) -> iolist().
-encode_signature(byte)                       -> "y";
-encode_signature(bool)                       -> "b";
-encode_signature(int16)                      -> "n";
-encode_signature(uint16)                     -> "q";
-encode_signature(int32)                      -> "i";
-encode_signature(uint32)                     -> "u";
-encode_signature(int64)                      -> "x";
-encode_signature(uint64 )                    -> "t";
-encode_signature(double)                     -> "d";
-encode_signature(string)                     -> "s";
-encode_signature(object_path)                -> "o";
-encode_signature(signature)                  -> "g";
-encode_signature({array, SubType})           -> [$a, encode_signature(SubType)];
-encode_signature(variant)                    -> "v";
-encode_signature({dict, KeyType, ValueType}) -> ["a{", encode_signature(KeyType), encode_signature(ValueType), "}"];
-encode_signature({struct, SubTypes})         -> ["(", [encode_signature(T) || T <- SubTypes], ")"];
-encode_signature(Type) when is_list(Type)    -> [encode_signature(T) || T <- Type].
-
-init() ->
-    SoName = case code:priv_dir(?APPNAME) of
-        {error, bad_name} ->
-            case filelib:is_dir(filename:join(["..", priv])) of
-                true ->
-                    filename:join(["..", priv, ?LIBNAME]);
-                _ ->
-                    filename:join([priv, ?LIBNAME])
-            end;
-        Dir ->
-            filename:join(Dir, ?LIBNAME)
-    end,
-    erlang:load_nif(SoName, 0).
-
-not_loaded(Line) ->
-    erlang:nif_error({not_loaded, [{module, ?MODULE}, {line, Line}]}).
+terminate(_Reason, #state{watches=Watches}) ->
+    lists:foreach(fun(W) ->
+                          enif_bus:watch_handle(W, ?BUS_WATCH_HANGUP)
+                  end, Watches).
