@@ -37,7 +37,8 @@ init_per_testcase(_, Config) ->
 
 
 signal_test(_Config) ->
-    {ok, _} = ebus_message:new_signal("/test/signal/Object", "test.signal.Type", "Test"),
+    {ok, M} = ebus_message:new_signal("/test/signal/Object", "test.signal.Type", "Test"),
+    0 = ebus_message:get_serial(M),
 
     {'EXIT', {badarg, _}} = (catch ebus_message:new_signal("badpath", "test.signal.Type", "Test")),
     {'EXIT', {badarg, _}} = (catch ebus_message:new_signal("/test/signal/Object", "bad_if", "Test")),
@@ -46,7 +47,9 @@ signal_test(_Config) ->
     ok.
 
 call_test(_Config) ->
-    {ok, _} = ebus_message:new_call("test.call.dest", "/test/call/Object", "test.call.Type", "Test"),
+    {ok, M} = ebus_message:new_call("test.call.dest", "/test/call/Object", "test.call.Type", "Test"),
+    0 = ebus_message:get_serial(M),
+
     %% {ok, _} = ebus:message_new_call("test.call.dest", "/test/call/Object", undefined, "Test"),
 
     {'EXIT', {badarg, _}} = (catch ebus_message:new_call("baddest", "/test/call/Object", "test.call.Type", "Test")),

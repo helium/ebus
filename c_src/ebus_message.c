@@ -18,7 +18,7 @@ dbus_message_dtor(ErlNifEnv * env, void * obj)
     dbus_message_unref(msg->message);
 }
 
-static ERL_NIF_TERM
+ERL_NIF_TERM
 mk_dbus_message(ErlNifEnv * env, DBusMessage * msg)
 {
     dbus_message * res =
@@ -29,7 +29,7 @@ mk_dbus_message(ErlNifEnv * env, DBusMessage * msg)
     return res_term;
 }
 
-static bool
+bool
 get_dbus_message(ErlNifEnv * env, ERL_NIF_TERM term, DBusMessage ** dest)
 {
     dbus_message * msg;
@@ -199,6 +199,23 @@ ebus_message_get_args(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
     }
 
     return ebus_message_list_args(env, message);
+}
+
+ERL_NIF_TERM
+ebus_message_get_serial(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
+{
+    if (argc != 1)
+    {
+        return enif_make_badarg(env);
+    }
+
+    DBusMessage * message;
+    if (!get_dbus_message(env, argv[0], &message))
+    {
+        return enif_make_badarg(env);
+    }
+
+    return enif_make_uint(env, dbus_message_get_serial(message));
 }
 
 void

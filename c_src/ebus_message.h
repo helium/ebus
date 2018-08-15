@@ -7,6 +7,12 @@ void
 ebus_message_load(ErlNifEnv * env);
 
 ERL_NIF_TERM
+mk_dbus_message(ErlNifEnv * env, DBusMessage * msg);
+
+bool
+get_dbus_message(ErlNifEnv * env, ERL_NIF_TERM term, DBusMessage ** dest);
+
+ERL_NIF_TERM
 ebus_message_new_signal(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[]);
 
 ERL_NIF_TERM
@@ -17,6 +23,9 @@ ebus_message_append_args(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[]);
 
 ERL_NIF_TERM
 ebus_message_get_args(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[]);
+
+ERL_NIF_TERM
+ebus_message_get_serial(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[]);
 
 
 #endif /* EBUS_MESSAGE_H */

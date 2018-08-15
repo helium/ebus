@@ -1,6 +1,6 @@
 -module(ebus_message).
 
--export([new_call/4, new_signal/3, append_args/3, get_args/1]).
+-export([new_call/4, new_signal/3, append_args/3, get_args/1, get_serial/1]).
 
 -spec new_signal(Path::string(), IFace::string(), Name::string()) -> {ok, ebus:message()}.
 new_signal(Path, IFace, Name) ->
@@ -17,6 +17,10 @@ append_args(Msg, Signature, Args) when length(Signature) == length(Args) ->
 -spec get_args(ebus:message()) -> {ok, [any()]} | {error, string()}.
 get_args(Msg) ->
     ebus_nif:message_get_args(Msg).
+
+-spec get_serial(ebus:message()) -> non_neg_integer().
+get_serial(Msg) ->
+    ebus_nif:message_get_serial(Msg).
 
 %%
 %% Private

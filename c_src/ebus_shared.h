@@ -22,5 +22,10 @@ extern ERL_NIF_TERM ATOM_UNDEFINED;
     char N[N##_len + 1];                                                       \
     enif_get_string(env, A, N, N##_len + 1, ERL_NIF_LATIN1);
 
+#define ATOM(Id, Value)                                                                  \
+    {                                                                                    \
+        Id = enif_make_atom(env, Value);                                                 \
+    }
+
 
 #endif /* EBUS_SHARED_H */

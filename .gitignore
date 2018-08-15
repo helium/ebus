@@ -11,5 +11,7 @@ rel/example_project
 priv
 c_src/h3/
 doc/
-_build
+_build/
+log/
 *.swp
+
