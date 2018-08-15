@@ -5,10 +5,10 @@
 ERL_NIF_TERM ATOM_ADD_TIMEOUT;
 ERL_NIF_TERM ATOM_REMOVE_TIMEOUT;
 
-extern DBusWatch *
-_dbus_watch_ref(DBusWatch * watch);
+extern DBusTimeout *
+_dbus_timeout_ref(DBusTimeout * watch);
 extern void
-_dbus_watch_unref(DBusWatch * watch);
+_dbus_timeout_unref(DBusTimeout * watch);
 
 typedef struct
 {
@@ -24,7 +24,7 @@ dbus_timeout_dtor(ErlNifEnv * env, void * obj)
     (void)env;
     dbus_timeout * res = (dbus_timeout *)obj;
     printf("UNREFFING TIMEOUT\n");
-    _dbus_watch_unref(res->timeout);
+    _dbus_timeout_unref(res->timeout);
     printf("UNREFFED TIMEOUT\n");
 }
 
