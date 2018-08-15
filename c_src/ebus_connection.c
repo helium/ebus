@@ -25,6 +25,11 @@ dbus_connection_dtor(ErlNifEnv * env, void * obj)
         printf("FREEING FILTER_ENV\n");
         enif_free_env(res->filter_env);
     }
+    if (res->connection) {
+        dbus_connection_close(res->connection);
+        dbus_connection_unref(res->connection);
+    }
+    enif_free_env(res->env);
 }
 
 bool
@@ -96,7 +101,7 @@ ebus_connection_get(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
         enif_alloc_resource(DBUS_CONNECTION_RESOURCE, sizeof(dbus_connection));
     res->connection = connection;
     res->handler    = handler_pid;
-    res->env        = env;
+    res->env        = enif_alloc_env();
     res->filter_env = NULL;
 
     if (!dbus_connection_set_watch_functions(
@@ -134,6 +139,8 @@ ebus_connection_close(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
     printf("CLOSING\n");
     dbus_connection_flush(res->connection);
     dbus_connection_close(res->connection);
+    dbus_connection_unref(res->connection);
+    res->connection = NULL;
     enif_release_resource(res);
 
     return ATOM_OK;
