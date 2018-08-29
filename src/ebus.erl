@@ -63,7 +63,9 @@
 -record(state, {
                 connection :: connection(),
                 timeouts=#{} :: #{Timeout::reference() => Timer::reference()},
-                filters=#{} :: #{reference() => pid()}
+                filters=[] :: [{reference(), filter()}],
+                filter_targets=#{} :: #{reference() => pid()},
+                filter_next_id=0 :: non_neg_integer()
                }).
 
 -define(SESSION, 0).
@@ -129,7 +131,7 @@ add_match(Pid, Rule) ->
 
 -spec add_filter(pid(), pid(), filter()) -> {ok, reference()} | {error, term()}.
 add_filter(Pid, Target, Filter) ->
-    gen_server:call(Pid, {add_filter, make_ref(), Target, Filter}).
+    gen_server:call(Pid, {add_filter, Target, Filter}).
 
 -spec remove_filter(pid(), reference()) -> ok.
 remove_filter(Pid, Ref) ->
@@ -192,38 +194,45 @@ handle_call({add_match, Rule}, _From, State=#state{connection=Conn}) ->
 handle_call({send, Msg}, _From, State=#state{connection=Conn}) ->
     {ok, _Serial} = ebus_nif:connection_send(Conn, Msg),
     {reply, ok, State};
-handle_call({add_filter, Ref, Target, Filter}, _From,
-            State=#state{connection=Conn, filters=Filters}) ->
-    case ebus_nif:connection_add_filter(Conn, {Ref, Filter}) of
-        ok -> {reply, {ok, Ref}, State#state{filters=maps:put(Ref, Target, Filters)}};
-        Error -> {reply, Error, State}
-    end;
+handle_call({add_filter, Target, Filter}, _From,
+            State=#state{connection=Conn, filter_next_id=FilterId, filters=Filters, filter_targets=Targets}) ->
+    io:format("SETTING FILTERS"),
+    NewFilters = ebus_nif:connection_set_filters(Conn, [{FilterId, Filter} | Filters]),
+    NewTargets = maps:put(FilterId, Target, Targets),
+    io:format("FILTERS: ~p", [NewFilters]),
+    {reply, {ok, FilterId}, State#state{filter_targets=NewTargets, filters=NewFilters,
+                                        filter_next_id=FilterId + 1}};
 
 handle_call(Msg, _From, State=#state{}) ->
     lager:warning("Unhandled call ~p", [Msg]),
     {noreply, State}.
 
 
-handle_cast({remove_filter, Ref}, State=#state{connection=Conn, filters=Filters}) ->
-    case maps:take(Ref, Filters) of
-        error ->
-            {noreply, State};
-        {_, NewFilters} ->
-            ebus_nif:connection_remove_filter(Conn, Ref),
-            {noreply, State#state{filters=NewFilters}}
-    end;
+handle_cast({remove_filter, Ref},
+            State=#state{connection=Conn, filters=Filters, filter_targets=Targets}) ->
+    NewFilters = ebus_nif:connection_set_filters(Conn, lists:keydelete(Ref, 1, Filters)),
+    NewTargets = maps:take(Ref, Targets),
+    {noreply, State#state{filters=NewFilters, filter_targets=NewTargets}};
 
 handle_cast(Msg, State=#state{}) ->
     lager:warning("Unhandled cast ~p", [Msg]),
     {noreply, State}.
 
-handle_info({filter_match, Ref, Msg}, State=#state{filters=Filters}) ->
-    case maps:get(Ref, Filters, not_found) of
-        not_found -> {noreply, State};
+handle_info({filter_match, Ref, Msg}, State=#state{filter_targets=Targets}) ->
+    case maps:get(Ref, Targets, not_found) of
+        not_found ->
+            io:format("NO TARGET"),
+            {noreply, State};
         Pid ->
-            %% TODO: Catch errors and remove pid
-            Pid ! {filter_match, Msg},
-            {noreply, State}
+            io:format("TARGET!"),
+            case (catch Pid ! {filter_match, Msg}) of
+                {'EXIT', Other} ->
+                    io:format("DISPATCH FAIL ~p", [Other]),
+                    {noreply, State#state{filter_targets=maps:remove(Ref, Targets)}};
+                Res ->
+                    io:format("DISPATCHED FILTER MATCH ~p ! ~p", [Pid, Res]),
+                    {noreply, State}
+            end
     end;
 handle_info({select, Watch, undefined, Flags}, State=#state{connection=Conn}) ->
     io:format("SELECT ~p", [Flags]),
@@ -232,6 +241,10 @@ handle_info({select, Watch, undefined, Flags}, State=#state{connection=Conn}) ->
                   ready_output -> ?WATCH_WRITABLE
               end,
     ebus_nif:watch_handle(Watch, BusFlag),
+    io:format("AFTER WATCH_HANDLE"),
+    self() ! {dispatch_status, ebus_nif:connection_dispatch(Conn)},
+    {noreply, State};
+handle_info(wakeup_main, State=#state{connection=Conn}) ->
     self() ! {dispatch_status, ebus_nif:connection_dispatch(Conn)},
     {noreply, State};
 handle_info({dispatch_status, Status}, State=#state{connection=Conn}) ->
@@ -255,7 +268,7 @@ handle_info({remove_timeout, Ref}, State=#state{timeouts=Timeouts}) ->
             erlang:cancel_timer(Timer),
             {noreply, State#state{timeouts=NewTimeouts}}
     end;
-handle_info({timeout, Ref}, State=#state{timeouts=Timeouts}) ->
+handle_info({timeout, Ref}, State=#state{timeouts=Timeouts, connection=Conn}) ->
     case maps:take(Ref, Timeouts) of
         error ->
             %% Timer was already canceled by nif through a
@@ -263,6 +276,7 @@ handle_info({timeout, Ref}, State=#state{timeouts=Timeouts}) ->
             {noreply, State};
         {_, NewTimeouts} ->
             ebus_nif:timeout_handle(Ref),
+            self() ! {dispatch_status, ebus_nif:connection_dispatch(Conn)},
             {noreply, State#state{timeouts=NewTimeouts}}
     end;
 

@@ -52,18 +52,22 @@ match_test(Config) ->
 send_test(Config) ->
     B = ?config(bus, Config),
 
-    %% ok = ebus:request_name(B, "com.helium.test", [{replace_existing, true}]),
-
-    ok = ebus:add_match(B, "type=signal, interface='test.signal.Type'"),
+    io:format("ADD MATCH"),
+    ok = ebus:add_match(B, "type=signal"),
+    io:format("ADD FILTER"),
     {ok, _Filter} = ebus:add_filter(B, self(),
-                                    #{interface => "test.signal.Type"
+                                    #{path => "/test/signal/Object"
                                      }),
+    io:format("ADDED FILTER ~p", [self()]),
 
     {ok, M} = ebus_message:new_signal("/test/signal/Object", "test.signal.Type", "Test"),
     ok = ebus:send(B, M),
 
-    _Msg = receive
-               {filter_match, M} -> M
-           after 5000 -> error(timeout)
-           end,
+    Msg = receive
+              {filter_match, M2} -> M2;
+              M1 -> M1
+          after 5000 -> erlang:exit(timeout_filter)
+          end,
+    io:format("MSG ~p", [ebus_message:get_args(Msg)]),
+
     ok.

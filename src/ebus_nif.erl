@@ -8,7 +8,7 @@
 -export([connection_get/2, connection_close/1, connection_unique_name/1,
          connection_request_name/3, connection_release_name/2,
          connection_add_match/2, connection_send/2, connection_dispatch/1,
-         connection_add_filter/2, connection_remove_filter/2]).
+         connection_set_filters/2]).
 -export([message_new_signal/3, message_new_call/4,
          message_append_args/3, message_get_args/1, message_get_serial/1]).
 -export([watch_handle/2]).
@@ -75,12 +75,8 @@ connection_send(_,_) ->
 connection_dispatch(_) ->
     not_loaded(?LINE).
 
--spec connection_add_filter(ebus:connection(), {Key::reference(), map()}) -> ok | {error, enomem}.
-connection_add_filter(_,_) ->
-    not_loaded(?LINE).
-
--spec connection_remove_filter(ebus:connection(), Key::reference()) -> ok.
-connection_remove_filter(_,_) ->
+-spec connection_set_filters(ebus:connection(), [{Ref::reference(), ebus:filter()}]) -> ok | {error, enomem}.
+connection_set_filters(_,_) ->
     not_loaded(?LINE).
 
 

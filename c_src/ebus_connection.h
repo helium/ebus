@@ -1,20 +1,20 @@
 #ifndef EBUS_CONNECTION_H
 #define EBUS_CONNECTION_H
 
+#include "ebus_filter.h"
 #include "ebus_shared.h"
-
-void
-ebus_connection_load(ErlNifEnv * env);
 
 typedef struct
 {
     ErlNifEnv *      env;
     DBusConnection * connection;
     ErlNifPid        handler;
-    // Filters
-    ErlNifEnv *  filter_env;
-    ERL_NIF_TERM filters;
+    ebus_filter *    filters;
+    unsigned long    next_timeout_id;
 } dbus_connection;
+
+void
+ebus_connection_load(ErlNifEnv * env);
 
 ERL_NIF_TERM
 mk_dbus_connection(ErlNifEnv * env, DBusWatch * watch);
@@ -47,10 +47,7 @@ ERL_NIF_TERM
 ebus_connection_dispatch(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[]);
 
 ERL_NIF_TERM
-ebus_connection_add_filter(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[]);
-
-ERL_NIF_TERM
-ebus_connection_remove_filter(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[]);
+ebus_connection_set_filters(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[]);
 
 
 #endif /* EBUS_CONNECTION_H */

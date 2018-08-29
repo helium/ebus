@@ -36,8 +36,7 @@ static ErlNifFunc nif_funcs[] = {
     {"connection_add_match", 2, ebus_connection_add_match, ERL_NIF_DIRTY_JOB_IO_BOUND},
     {"connection_send", 2, ebus_connection_send, ERL_NIF_DIRTY_JOB_IO_BOUND},
     {"connection_dispatch", 1, ebus_connection_dispatch, ERL_NIF_DIRTY_JOB_CPU_BOUND},
-    {"connection_add_filter", 2, ebus_connection_add_filter, 0},
-    {"connection_remove_filter", 2, ebus_connection_remove_filter, 0},
+    {"connection_set_filters", 2, ebus_connection_set_filters, 0},
 
     {"message_new_signal", 3, ebus_message_new_signal, 0},
     {"message_new_call", 4, ebus_message_new_call, 0},
@@ -68,6 +67,7 @@ load(ErlNifEnv * env, void ** priv_data, ERL_NIF_TERM load_info)
     ebus_message_load(env);
     ebus_watch_load(env);
     ebus_timeout_load(env);
+    ebus_filter_load(env);
 
     return 0;
 }

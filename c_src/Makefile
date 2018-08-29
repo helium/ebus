@@ -27,7 +27,7 @@ else ifeq ($(UNAME_SYS), FreeBSD)
 	CXXFLAGS ?= -O3 -finline-functions -Wall
 else ifeq ($(UNAME_SYS), Linux)
 	CC ?= gcc
-	CFLAGS ?= -O3 -std=c99 -finline-functions -Wall -Wmissing-prototypes
+	CFLAGS ?= -g3 -ggdb -std=c99 -finline-functions -Wall -Wmissing-prototypes
 	CFLAGS += -I /usr/include/dbus-1.0 -I /usr/lib/dbus-1.0/include
 	CXXFLAGS ?= -O3 -finline-functions -Wall
 endif
