@@ -1,6 +1,7 @@
 -module(ebus_message).
 
--export([new_call/4, new_signal/3, append_args/3, get_args/1, get_serial/1]).
+-export([new_call/4, new_signal/3, append_args/3,
+         args/1, serial/1, interface/1, path/1, member/1]).
 
 -spec new_signal(Path::string(), IFace::string(), Name::string()) -> {ok, ebus:message()}.
 new_signal(Path, IFace, Name) ->
@@ -14,13 +15,26 @@ new_call(Dest, Path, IFace, Name) ->
 append_args(Msg, Signature, Args) when length(Signature) == length(Args) ->
     ebus_nif:message_append_args(Msg, lists:flatten(encode_signature(Signature)), Args).
 
--spec get_args(ebus:message()) -> {ok, [any()]} | {error, string()}.
-get_args(Msg) ->
+-spec args(ebus:message()) -> {ok, [any()]} | {error, string()}.
+args(Msg) ->
     ebus_nif:message_get_args(Msg).
 
--spec get_serial(ebus:message()) -> non_neg_integer().
-get_serial(Msg) ->
+-spec serial(ebus:message()) -> non_neg_integer().
+serial(Msg) ->
     ebus_nif:message_get_serial(Msg).
+
+-spec interface(ebus:message()) -> string() | undefined.
+interface(Msg) ->
+    ebus_nif:message_get_interface(Msg).
+
+-spec path(ebus:message()) -> string() | undefined.
+path(Msg) ->
+    ebus_nif:message_get_path(Msg).
+
+-spec member(ebus:message()) -> string() | undefined.
+member(Msg) ->
+    ebus_nif:message_get_member(Msg).
+
 
 %%
 %% Private

@@ -265,9 +265,12 @@ ebus_message_append_arg(ErlNifEnv *         env,
         {
             v.bool_val = 1;
         }
-        else
+        else if (term == ATOM_FALSE)
         {
             v.bool_val = 0;
+        } else {
+            ret = FALSE;
+            break;
         }
         ret = dbus_message_iter_append_basic(appender, sig_type, &v.bool_val);
         break;

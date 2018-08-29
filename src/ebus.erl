@@ -54,7 +54,7 @@
                            | {do_not_queue, boolean()}.
 -type request_name_reply() :: ok
                             | {error, queued}
-                            | {error, term()}.
+                            | {error, exists}.
 -type release_name_reply() :: ok
                             | {error, not_found}
                             | {error, not_owner}.
@@ -137,7 +137,7 @@ add_filter(Pid, Target, Filter) ->
 remove_filter(Pid, Ref) ->
     gen_server:cast(Pid, {remove_filter, Ref}).
 
--spec send(pid(), message()) -> any().
+-spec send(pid(), message()) -> ok | {error, term()}.
 send(Pid, Msg) ->
     gen_server:call(Pid, {send, Msg}).
 
@@ -177,7 +177,7 @@ handle_call({request_name, Name, Opts}, _From, State=#state{connection=Conn}) ->
     Reply = case ebus_nif:connection_request_name(Conn, Name, Flags) of
                 {ok, ?REQUEST_NAME_REPLY_PRIMARY_OWNER} -> ok;
                 {ok, ?REQUEST_NAME_REPLY_IN_QUEUE} -> {error, queued};
-                {ok, ?REQUEST_NAME_REPLY_EXISTS} -> {error, queued};
+                {ok, ?REQUEST_NAME_REPLY_EXISTS} -> {error, exists};
                 {ok, ?REQUEST_NAME_REPLY_ALREADY_OWNER} -> ok;
                 {error, Msg} -> {error, Msg}
             end,
@@ -192,17 +192,18 @@ handle_call({release_name, Name}, _From, State=#state{connection=Conn}) ->
 handle_call({add_match, Rule}, _From, State=#state{connection=Conn}) ->
     {reply, ebus_nif:connection_add_match(Conn, Rule), State};
 handle_call({send, Msg}, _From, State=#state{connection=Conn}) ->
-    {ok, _Serial} = ebus_nif:connection_send(Conn, Msg),
-    {reply, ok, State};
+    {reply, ebus_nif:connection_send(Conn, Msg), State};
 handle_call({add_filter, Target, Filter}, _From,
             State=#state{connection=Conn, filter_next_id=FilterId, filters=Filters, filter_targets=Targets}) ->
-    io:format("SETTING FILTERS"),
-    NewFilters = ebus_nif:connection_set_filters(Conn, [{FilterId, Filter} | Filters]),
-    NewTargets = maps:put(FilterId, Target, Targets),
-    io:format("FILTERS: ~p", [NewFilters]),
-    {reply, {ok, FilterId}, State#state{filter_targets=NewTargets, filters=NewFilters,
-                                        filter_next_id=FilterId + 1}};
-
+    NewFilters = [{FilterId, Filter} | Filters],
+    case ebus_nif:connection_set_filters(Conn, NewFilters) of
+        ok ->
+            NewTargets = maps:put(FilterId, Target, Targets),
+            {reply, {ok, FilterId}, State#state{filter_targets=NewTargets, filters=NewFilters,
+                                                filter_next_id=FilterId + 1}};
+        {error, Err} ->
+            {reply, {error, Err}, State}
+    end;
 handle_call(Msg, _From, State=#state{}) ->
     lager:warning("Unhandled call ~p", [Msg]),
     {noreply, State}.
@@ -210,10 +211,18 @@ handle_call(Msg, _From, State=#state{}) ->
 
 handle_cast({remove_filter, Ref},
             State=#state{connection=Conn, filters=Filters, filter_targets=Targets}) ->
-    NewFilters = ebus_nif:connection_set_filters(Conn, lists:keydelete(Ref, 1, Filters)),
-    NewTargets = maps:take(Ref, Targets),
-    {noreply, State#state{filters=NewFilters, filter_targets=NewTargets}};
-
+    NewFilters = lists:keydelete(Ref, 1, Filters),
+    case ebus_nif:connection_set_filters(Conn, NewFilters) of
+        ok ->
+            case maps:take(Ref, Targets) of
+                error ->
+                    {noreply, State#state{filters=NewFilters}};
+                {_, NewTargets} ->
+                    {noreply, State#state{filters=NewFilters, filter_targets=NewTargets}}
+            end;
+        {error, Err} ->
+            {reply, {error, Err}, State}
+    end;
 handle_cast(Msg, State=#state{}) ->
     lager:warning("Unhandled cast ~p", [Msg]),
     {noreply, State}.
@@ -221,27 +230,21 @@ handle_cast(Msg, State=#state{}) ->
 handle_info({filter_match, Ref, Msg}, State=#state{filter_targets=Targets}) ->
     case maps:get(Ref, Targets, not_found) of
         not_found ->
-            io:format("NO TARGET"),
             {noreply, State};
         Pid ->
-            io:format("TARGET!"),
             case (catch Pid ! {filter_match, Msg}) of
-                {'EXIT', Other} ->
-                    io:format("DISPATCH FAIL ~p", [Other]),
+                {'EXIT', _} ->
                     {noreply, State#state{filter_targets=maps:remove(Ref, Targets)}};
-                Res ->
-                    io:format("DISPATCHED FILTER MATCH ~p ! ~p", [Pid, Res]),
+                _ ->
                     {noreply, State}
             end
     end;
 handle_info({select, Watch, undefined, Flags}, State=#state{connection=Conn}) ->
-    io:format("SELECT ~p", [Flags]),
     BusFlag = case Flags of
                   ready_input -> ?WATCH_READABLE;
                   ready_output -> ?WATCH_WRITABLE
               end,
     ebus_nif:watch_handle(Watch, BusFlag),
-    io:format("AFTER WATCH_HANDLE"),
     self() ! {dispatch_status, ebus_nif:connection_dispatch(Conn)},
     {noreply, State};
 handle_info(wakeup_main, State=#state{connection=Conn}) ->
@@ -250,7 +253,6 @@ handle_info(wakeup_main, State=#state{connection=Conn}) ->
 handle_info({dispatch_status, Status}, State=#state{connection=Conn}) ->
     case Status of
         ?DISPATCH_DATA_REMAINS ->
-            io:format("DISPATCH SOME MORE"),
             self() ! {dispatch_status, ebus_nif:connection_dispatch(Conn)};
         ?DISPATCH_COMPLETE -> ok;
         ?DISPATCH_NEED_MEMORY ->

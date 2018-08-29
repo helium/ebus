@@ -10,7 +10,8 @@
          connection_add_match/2, connection_send/2, connection_dispatch/1,
          connection_set_filters/2]).
 -export([message_new_signal/3, message_new_call/4,
-         message_append_args/3, message_get_args/1, message_get_serial/1]).
+         message_append_args/3, message_get_args/1, message_get_serial/1,
+         message_get_path/1, message_get_interface/1, message_get_member/1]).
 -export([watch_handle/2]).
 -export([timeout_handle/1]).
 
@@ -36,6 +37,18 @@ message_get_args(_) ->
 
 -spec message_get_serial(ebus:message()) -> non_neg_integer().
 message_get_serial(_) ->
+    not_loaded(?LINE).
+
+-spec message_get_path(ebus:message()) -> string() | undefined.
+message_get_path(_) ->
+    not_loaded(?LINE).
+
+-spec message_get_interface(ebus:message()) -> string() | undefined.
+message_get_interface(_) ->
+    not_loaded(?LINE).
+
+-spec message_get_member(ebus:message()) -> string() | undefined.
+message_get_member(_) ->
     not_loaded(?LINE).
 
 %%
@@ -67,7 +80,7 @@ connection_request_name(_, _, _) ->
 connection_release_name(_, _) ->
     not_loaded(?LINE).
 
--spec connection_send(ebus:connection(), ebus:message()) -> non_neg_integer().
+-spec connection_send(ebus:connection(), ebus:message()) -> ok | {error, enomem}.
 connection_send(_,_) ->
     not_loaded(?LINE).
 

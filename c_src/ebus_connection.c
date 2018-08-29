@@ -290,7 +290,7 @@ ebus_connection_send(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
     }
 
     dbus_connection_read_write(connection, -1);
-    return enif_make_tuple2(env, ATOM_OK, enif_make_uint(env, serial));
+    return ATOM_OK;
 }
 
 

@@ -17,8 +17,8 @@
 #include "ebus_connection.h"
 #include "ebus_message.h"
 #include "ebus_shared.h"
-#include "ebus_watch.h"
 #include "ebus_timeout.h"
+#include "ebus_watch.h"
 
 ERL_NIF_TERM ATOM_OK;
 ERL_NIF_TERM ATOM_ERROR;
@@ -43,6 +43,9 @@ static ErlNifFunc nif_funcs[] = {
     {"message_append_args", 3, ebus_message_append_args, ERL_NIF_DIRTY_JOB_CPU_BOUND},
     {"message_get_args", 1, ebus_message_get_args, ERL_NIF_DIRTY_JOB_CPU_BOUND},
     {"message_get_serial", 1, ebus_message_get_serial, 0},
+    {"message_get_path", 1, ebus_message_get_path, 0},
+    {"message_get_interface", 1, ebus_message_get_interface, 0},
+    {"message_get_member", 1, ebus_message_get_member, 0},
 
     {"watch_handle", 2, ebus_watch_handle, ERL_NIF_DIRTY_JOB_IO_BOUND},
 

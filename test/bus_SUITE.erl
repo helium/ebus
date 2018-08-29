@@ -1,13 +1,19 @@
 -module(bus_SUITE).
 
 -include_lib("common_test/include/ct.hrl").
+-include_lib("eunit/include/eunit.hrl").
 
 -export([all/0, init_per_testcase/2, end_per_testcase/2]).
--export([bad_bus_test/1, name_test/1, match_test/1, send_test/1]).
+-export([bad_bus_test/1,
+         name_test/1,
+         unique_name_test/1,
+         match_test/1,
+         send_test/1]).
 
 all() ->
     [ bad_bus_test,
       name_test,
+      unique_name_test,
       match_test,
       send_test
     ].
@@ -31,43 +37,52 @@ bad_bus_test(_Config) ->
 
     ok.
 
+unique_name_test(Config) ->
+    B = ?config(bus, Config),
+
+    ?assert(is_list(ebus:unique_name(B))),
+    ok.
+
 name_test(Config) ->
     B = ?config(bus, Config),
 
-    ok = ebus:request_name(B, "com.helium.test", [{replace_existing, true}]),
+    ?assertEqual(ok,
+                ebus:request_name(B, "com.helium.test", [{replace_existing, true}])),
 
-    ok = ebus:release_name(B, "com.helium.test"),
-    {error, not_found} = ebus:release_name(B, "com.helium.notthere"),
+    ?assertEqual(ok, ebus:release_name(B, "com.helium.test")),
+    ?assertEqual({error, not_found}, ebus:release_name(B, "com.helium.notthere")),
 
     ok.
 
 match_test(Config) ->
     B = ?config(bus, Config),
 
-    ok = ebus:add_match(B, "type=signal, interface='test.signal.Type'"),
-    {error, _} = ebus:add_match(B, "type=notthere"),
+    ?assertEqual(ok, ebus:add_match(B, "type=signal, interface='test.signal.Type'")),
+    ?assertMatch({error, _}, ebus:add_match(B, "type=notthere")),
 
     ok.
 
 send_test(Config) ->
     B = ?config(bus, Config),
 
-    io:format("ADD MATCH"),
     ok = ebus:add_match(B, "type=signal"),
-    io:format("ADD FILTER"),
-    {ok, _Filter} = ebus:add_filter(B, self(),
-                                    #{path => "/test/signal/Object"
-                                     }),
-    io:format("ADDED FILTER ~p", [self()]),
+    {ok, Filter} = ebus:add_filter(B, self(),
+                                   #{
+                                     path => "/test/signal/Object"
+                                    }),
 
     {ok, M} = ebus_message:new_signal("/test/signal/Object", "test.signal.Type", "Test"),
     ok = ebus:send(B, M),
 
     Msg = receive
-              {filter_match, M2} -> M2;
-              M1 -> M1
+              {filter_match, M2} -> M2
           after 5000 -> erlang:exit(timeout_filter)
           end,
-    io:format("MSG ~p", [ebus_message:get_args(Msg)]),
+
+    ?assertEqual("test.signal.Type", ebus_message:interface(Msg)),
+    ?assertEqual("Test", ebus_message:member(Msg)),
+    ?assertEqual("/test/signal/Object", ebus_message:path(Msg)),
+
+    ok = ebus:remove_filter(B, Filter),
 
     ok.

@@ -200,7 +200,8 @@ mk_ebus_filters(ErlNifEnv * env, ERL_NIF_TERM filters, ebus_filter ** dest)
 
     ebus_filters_free(*dest);
     *dest = new_filters;
-    return filters;
+
+    return ATOM_OK;
 }
 
 void

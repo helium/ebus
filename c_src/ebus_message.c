@@ -21,9 +21,8 @@ dbus_message_dtor(ErlNifEnv * env, void * obj)
 ERL_NIF_TERM
 mk_dbus_message(ErlNifEnv * env, DBusMessage * msg)
 {
-    dbus_message * res =
-        enif_alloc_resource(DBUS_MESSAGE_RESOURCE, sizeof(dbus_message));
-    res->message          = msg;
+    dbus_message * res = enif_alloc_resource(DBUS_MESSAGE_RESOURCE, sizeof(dbus_message));
+    res->message       = msg;
     ERL_NIF_TERM res_term = enif_make_resource(env, res);
     enif_release_resource(res);
     return res_term;
@@ -110,8 +109,7 @@ ebus_message_new_call(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
         return enif_make_badarg(env);
     }
 
-    DBusMessage * message =
-        dbus_message_new_method_call(destination, path, iface, method);
+    DBusMessage * message = dbus_message_new_method_call(destination, path, iface, method);
     if (message == NULL)
     {
         return enif_make_tuple2(env, ATOM_ERROR, ATOM_ENOMEM);
@@ -218,14 +216,63 @@ ebus_message_get_serial(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
     return enif_make_uint(env, dbus_message_get_serial(message));
 }
 
+
+static ERL_NIF_TERM
+mk_str_maybe(ErlNifEnv * env, const char * str)
+{
+    if (str)
+    {
+        return enif_make_string(env, str, ERL_NIF_LATIN1);
+    }
+    else
+    {
+        return ATOM_UNDEFINED;
+    }
+}
+
+ERL_NIF_TERM
+ebus_message_get_path(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
+{
+    DBusMessage * message;
+    if (argc != 1 || !get_dbus_message(env, argv[0], &message))
+    {
+        return enif_make_badarg(env);
+    }
+
+    const char * str = dbus_message_get_path(message);
+    return mk_str_maybe(env, str);
+}
+
+ERL_NIF_TERM
+ebus_message_get_interface(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
+{
+    DBusMessage * message;
+    if (argc != 1 || !get_dbus_message(env, argv[0], &message))
+    {
+        return enif_make_badarg(env);
+    }
+
+    const char * str = dbus_message_get_interface(message);
+    return mk_str_maybe(env, str);
+}
+
+ERL_NIF_TERM
+ebus_message_get_member(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
+{
+    DBusMessage * message;
+    if (argc != 1 || !get_dbus_message(env, argv[0], &message))
+    {
+        return enif_make_badarg(env);
+    }
+
+    const char * str = dbus_message_get_member(message);
+    return mk_str_maybe(env, str);
+}
+
 void
 ebus_message_load(ErlNifEnv * env)
 {
-    int flags             = ERL_NIF_RT_CREATE | ERL_NIF_RT_TAKEOVER;
-    DBUS_MESSAGE_RESOURCE = enif_open_resource_type(env,
-                                                    NULL,
-                                                    "dbus_message",
-                                                    dbus_message_dtor,
-                                                    flags,
-                                                    NULL);
+    int flags = ERL_NIF_RT_CREATE | ERL_NIF_RT_TAKEOVER;
+    DBUS_MESSAGE_RESOURCE =
+        enif_open_resource_type(env, NULL, "dbus_message", dbus_message_dtor, flags, NULL);
 }
