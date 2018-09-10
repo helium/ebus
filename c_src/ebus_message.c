@@ -85,8 +85,14 @@ ebus_message_new_call(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
         return enif_make_badarg(env);
     }
 
-    GET_STR(destination, argv[0]);
-    if (!dbus_validate_bus_name(destination, NULL))
+    GET_STR(maybe_destination, argv[0]);
+    const char * destination = maybe_destination;
+
+    if (maybe_destination_len == 0)
+    {
+        destination = NULL;
+    }
+    else if (!dbus_validate_bus_name(maybe_destination, NULL))
     {
         return enif_make_badarg(env);
     }
@@ -97,8 +103,13 @@ ebus_message_new_call(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
         return enif_make_badarg(env);
     }
 
-    GET_STR(iface, argv[2]);
-    if (!dbus_validate_interface(iface, NULL))
+    GET_STR(maybe_iface, argv[2]);
+    const char * iface = maybe_iface;
+    if (maybe_iface_len == 0)
+    {
+        iface = NULL;
+    }
+    else if (!dbus_validate_interface(maybe_iface, NULL))
     {
         return enif_make_badarg(env);
     }
@@ -228,6 +239,19 @@ mk_str_maybe(ErlNifEnv * env, const char * str)
     {
         return ATOM_UNDEFINED;
     }
+}
+
+ERL_NIF_TERM
+ebus_message_get_destination(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
+{
+    DBusMessage * message;
+    if (argc != 1 || !get_dbus_message(env, argv[0], &message))
+    {
+        return enif_make_badarg(env);
+    }
+
+    const char * str = dbus_message_get_destination(message);
+    return mk_str_maybe(env, str);
 }
 
 ERL_NIF_TERM

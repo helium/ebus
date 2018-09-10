@@ -3,7 +3,8 @@
 -behavior(gen_server).
 
 %% gen_server
--export([start_link/0, start_link/1, init/1,
+-export([start/0, start/1,
+         start_link/0, start_link/1, init/1,
          handle_call/3, handle_cast/2, handle_info/2,
          terminate/2]).
 
@@ -12,7 +13,8 @@
          request_name/3, release_name/2,
          add_match/2,
          add_filter/3, remove_filter/2,
-         send/2]).
+         send/2,
+         register_object_path/3, unregister_object_path/2]).
 
 -type connection() :: reference().
 -type watch() :: reference().
@@ -141,20 +143,28 @@ remove_filter(Pid, Ref) ->
 send(Pid, Msg) ->
     gen_server:call(Pid, {send, Msg}).
 
+-spec register_object_path(pid(), string(), pid()) -> ok | {error, term()}.
+register_object_path(Pid, Path, ObjectPid) ->
+    gen_server:call(Pid, {register_object_path, Path, ObjectPid}).
+
+-spec unregister_object_path(pid(), string()) -> ok | {error, term()}.
+unregister_object_path(Pid, Path) ->
+    gen_server:call(Pid, {unregister_object_path, Path}).
+
 %% gen_server
 %%
+
+start() ->
+    start(starter).
+
+start(Type) ->
+    gen_server:start(?MODULE, [bus_type(Type)], []).
 
 start_link() ->
     start_link(starter).
 
 start_link(Type) ->
-    IntType = case Type of
-                  session -> ?SESSION;
-                  system -> ?SYSTEM;
-                  starter -> ?STARTER;
-                  _ -> error(badarg)
-              end,
-    gen_server:start_link(?MODULE, [IntType], []).
+    gen_server:start_link(?MODULE, [bus_type(Type)], []).
 
 init([IntType]) ->
     erlang:process_flag(trap_exit, true),
@@ -204,6 +214,11 @@ handle_call({add_filter, Target, Filter}, _From,
         {error, Err} ->
             {reply, {error, Err}, State}
     end;
+handle_call({register_object_path, Path, ObjectPid}, _From, State=#state{connection=Conn}) ->
+    {reply, ebus_nif:connection_register_object_path(Conn, Path, ObjectPid), State};
+handle_call({unregister_object_path, Path}, _From, State=#state{connection=Conn}) ->
+    {reply, ebus_nif:connection_unregister_object_path(Conn, Path), State};
+
 handle_call(Msg, _From, State=#state{}) ->
     lager:warning("Unhandled call ~p", [Msg]),
     {noreply, State}.
@@ -289,3 +304,15 @@ handle_info(Msg, State=#state{}) ->
 
 terminate(_Reason, #state{connection=Conn}) ->
     ebus_nif:connection_close(Conn).
+
+%%
+%% Internal
+%%
+
+bus_type(Type) ->
+    case Type of
+        session -> ?SESSION;
+        system -> ?SYSTEM;
+        starter -> ?STARTER;
+        _ -> error(badarg)
+    end.

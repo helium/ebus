@@ -72,6 +72,10 @@ send_test(Config) ->
                                     }),
 
     {ok, M} = ebus_message:new_signal("/test/signal/Object", "test.signal.Type", "Test"),
+    Args = [#{"lat" => 48.858845065,
+              "lon" => 2.352656618,
+              "acc" => 22.1}],
+    ebus_message:append_args(M, [{dict, string, double}], Args),
     ok = ebus:send(B, M),
 
     Msg = receive
@@ -82,6 +86,7 @@ send_test(Config) ->
     ?assertEqual("test.signal.Type", ebus_message:interface(Msg)),
     ?assertEqual("Test", ebus_message:member(Msg)),
     ?assertEqual("/test/signal/Object", ebus_message:path(Msg)),
+    ?assertEqual({ok, Args}, ebus_message:args(Msg)),
 
     ok = ebus:remove_filter(B, Filter),
 

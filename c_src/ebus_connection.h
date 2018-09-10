@@ -49,5 +49,11 @@ ebus_connection_dispatch(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[]);
 ERL_NIF_TERM
 ebus_connection_set_filters(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[]);
 
+ERL_NIF_TERM
+ebus_connection_register_object_path(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[]);
+
+ERL_NIF_TERM
+ebus_connection_unregister_object_path(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[]);
+
 
 #endif /* EBUS_CONNECTION_H */

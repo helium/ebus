@@ -59,7 +59,15 @@ signal_test(_Config) ->
 
 call_test(_Config) ->
     {ok, M} = ebus_message:new_call("test.call.dest", "/test/call/Object", "test.call.Type", "Test"),
+    ?assertEqual("test.call.dest", ebus_message:destination(M)),
+    ?assertEqual("/test/call/Object", ebus_message:path(M)),
+    ?assertEqual("test.call.Type", ebus_message:interface(M)),
+    ?assertEqual("Test", ebus_message:member(M)),
     ?assertEqual(0, ebus_message:serial(M)),
+
+    {ok, M2} = ebus_message:new_call(undefined, "/test/call/Object", undefined, "Test"),
+    ?assertEqual(undefined, ebus_message:destination(M2)),
+    ?assertEqual(undefined, ebus_message:interface(M2)),
 
     lists:foreach(fun({Dest, Path, IFace, Member}) ->
                           ?assertMatch({'EXIT', {badarg, _}},

@@ -28,6 +28,9 @@ ERL_NIF_TERM
 ebus_message_get_serial(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[]);
 
 ERL_NIF_TERM
+ebus_message_get_destination(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[]);
+
+ERL_NIF_TERM
 ebus_message_get_path(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[]);
 
 ERL_NIF_TERM

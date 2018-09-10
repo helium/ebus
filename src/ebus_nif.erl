@@ -8,10 +8,11 @@
 -export([connection_get/2, connection_close/1, connection_unique_name/1,
          connection_request_name/3, connection_release_name/2,
          connection_add_match/2, connection_send/2, connection_dispatch/1,
-         connection_set_filters/2]).
+         connection_set_filters/2,
+         connection_register_object_path/3, connection_unregister_object_path/2]).
 -export([message_new_signal/3, message_new_call/4,
          message_append_args/3, message_get_args/1, message_get_serial/1,
-         message_get_path/1, message_get_interface/1, message_get_member/1]).
+         message_get_destination/1, message_get_path/1, message_get_interface/1, message_get_member/1]).
 -export([watch_handle/2]).
 -export([timeout_handle/1]).
 
@@ -31,12 +32,16 @@ message_new_call(_,_,_,_) ->
 message_append_args(_, _, _) ->
     not_loaded(?LINE).
 
--spec message_get_args(ebus:message()) -> {ok, [any()]} | {error, string()}.
+-spec message_get_args(ebus:message()) -> {ok, [any()]} | {error, term()}.
 message_get_args(_) ->
     not_loaded(?LINE).
 
 -spec message_get_serial(ebus:message()) -> non_neg_integer().
 message_get_serial(_) ->
+    not_loaded(?LINE).
+
+-spec message_get_destination(ebus:message()) -> string() | undefined.
+message_get_destination(_) ->
     not_loaded(?LINE).
 
 -spec message_get_path(ebus:message()) -> string() | undefined.
@@ -55,7 +60,7 @@ message_get_member(_) ->
 %% Connection
 %%
 
--spec connection_get(pos_integer(), pid()) -> {ok, ebus:connection()} | {error, string()}.
+-spec connection_get(pos_integer(), pid()) -> {ok, ebus:connection()} | {error, term()}.
 connection_get(_,_) ->
     not_loaded(?LINE).
 
@@ -67,16 +72,16 @@ connection_close(_) ->
 connection_unique_name(_) ->
     not_loaded(?LINE).
 
--spec connection_add_match(ebus:connection(), Rule::string()) -> ok | {error, string()}.
+-spec connection_add_match(ebus:connection(), Rule::string()) -> ok | {error, term()}.
 connection_add_match(_,_) ->
     not_loaded(?LINE).
 
 -spec connection_request_name(ebus:connection(), Name::string(), Flags::pos_integer())
-                             -> {error, string()} | {ok, pos_integer()}.
+                             -> {error, term()} | {ok, pos_integer()}.
 connection_request_name(_, _, _) ->
     not_loaded(?LINE).
 
--spec connection_release_name(ebus:connection(), Name::string()) -> {ok, pos_integer()} | {error, string()}.
+-spec connection_release_name(ebus:connection(), Name::string()) -> {ok, pos_integer()} | {error, term()}.
 connection_release_name(_, _) ->
     not_loaded(?LINE).
 
@@ -90,6 +95,14 @@ connection_dispatch(_) ->
 
 -spec connection_set_filters(ebus:connection(), [{Ref::reference(), ebus:filter()}]) -> ok | {error, enomem}.
 connection_set_filters(_,_) ->
+    not_loaded(?LINE).
+
+-spec connection_register_object_path(ebus:connection(), string(), pid()) -> ok | {error, enomem | already}.
+connection_register_object_path(_,_,_) ->
+    not_loaded(?LINE).
+
+-spec connection_unregister_object_path(ebus:connection(), string()) -> ok | {error, enomem | already}.
+connection_unregister_object_path(_,_) ->
     not_loaded(?LINE).
 
 

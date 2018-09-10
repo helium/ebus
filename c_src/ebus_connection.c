@@ -1,5 +1,7 @@
 #include "ebus_connection.h"
+#include "ebus_error.h"
 #include "ebus_message.h"
+#include "ebus_object.h"
 #include "ebus_timeout.h"
 #include "ebus_watch.h"
 #include <stdio.h>
@@ -56,7 +58,7 @@ cb_dispatch_status(DBusConnection * c, DBusDispatchStatus status, void * data)
 static void
 cb_wakeup_main(void * data)
 {
-    dbus_connection * state   = (dbus_connection *)data;
+    dbus_connection * state = (dbus_connection *)data;
     enif_send(NULL, &state->handler, NULL, ATOM_WAKEUP_MAIN);
 }
 
@@ -87,9 +89,7 @@ ebus_connection_get(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
     DBusConnection * connection = dbus_bus_get(bus_type, &error);
     if (dbus_error_is_set(&error))
     {
-        ERL_NIF_TERM message = enif_make_string(env, error.message, ERL_NIF_LATIN1);
-        dbus_error_free(&error);
-        return enif_make_tuple2(env, ATOM_ERROR, message);
+        return handle_dbus_error(env, &error);
     }
 
     dbus_connection_set_exit_on_disconnect(connection, FALSE);
@@ -150,9 +150,7 @@ ebus_connection_close(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
         int result = (F);                                                                \
         if (dbus_error_is_set(&error))                                                   \
         {                                                                                \
-            ERL_NIF_TERM message = enif_make_string(env, error.message, ERL_NIF_LATIN1); \
-            dbus_error_free(&error);                                                     \
-            return enif_make_tuple2(env, ATOM_ERROR, message);                           \
+            return handle_dbus_error(env, &error);                                       \
         }                                                                                \
         else                                                                             \
         {                                                                                \
@@ -251,16 +249,8 @@ ebus_connection_add_match(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
     DBusError error;
     dbus_error_init(&error);
     dbus_bus_add_match(connection, rule, &error);
-    if (dbus_error_is_set(&error))
-    {
-        ERL_NIF_TERM message = enif_make_string(env, error.message, ERL_NIF_LATIN1);
-        dbus_error_free(&error);
-        return enif_make_tuple2(env, ATOM_ERROR, message);
-    }
-    else
-    {
-        return ATOM_OK;
-    }
+
+    return handle_dbus_error(env, &error);
 }
 
 ERL_NIF_TERM
@@ -328,6 +318,74 @@ ebus_connection_set_filters(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[]
     return mk_ebus_filters(env, argv[1], &res->filters);
 }
 
+ERL_NIF_TERM
+ebus_connection_register_object_path(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
+{
+    if (argc != 3)
+    {
+        return enif_make_badarg(env);
+    }
+
+    dbus_connection * state;
+    if (!get_dbus_connection_resource(env, argv[0], &state))
+    {
+        return enif_make_badarg(env);
+    }
+
+    GET_STR(path, argv[1]);
+    if (!dbus_validate_path(path, NULL))
+    {
+        return enif_make_badarg(env);
+    }
+
+    ErlNifPid pid;
+    if (!enif_get_local_pid(env, argv[2], &pid))
+    {
+        return enif_make_badarg(env);
+    }
+
+    DBusError error;
+    dbus_error_init(&error);
+    DBusObjectPathVTable vtable = {.unregister_function = cb_object_unregister,
+                                   .message_function    = cb_object_handle_message};
+
+    dbus_object * obj = mk_dbus_object_resource(env, &pid);
+    if (!dbus_connection_try_register_object_path(state->connection, path, &vtable, obj, &error))
+    {
+        enif_release_resource(obj);
+        return handle_dbus_error(env, &error);
+    }
+
+    return ATOM_OK;
+}
+
+ERL_NIF_TERM
+ebus_connection_unregister_object_path(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
+{
+    if (argc != 2)
+    {
+        return enif_make_badarg(env);
+    }
+
+    dbus_connection * state;
+    if (!get_dbus_connection_resource(env, argv[0], &state))
+    {
+        return enif_make_badarg(env);
+    }
+
+    GET_STR(path, argv[1]);
+    if (!dbus_validate_path(path, NULL))
+    {
+        return enif_make_badarg(env);
+    }
+
+    if (!dbus_connection_unregister_object_path(state->connection, path))
+    {
+        return enif_make_tuple2(env, ATOM_ERROR, ATOM_ENOMEM);
+    }
+
+    return ATOM_OK;
+}
 
 
 void
