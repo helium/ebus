@@ -5,16 +5,16 @@
          serial/1, serial/2, reply_serial/1,
          destination/1, interface/1, path/1, member/1]).
 
--spec new_signal(Path::string(), IFace::string(), Name::string()) -> {ok, ebus:message()}.
+-spec new_signal(Path::string(), IFace::string(), Name::string()) -> {ok, ebus:message()} | {error, term()}.
 new_signal(Path, IFace, Name) ->
     ebus_nif:message_new_signal(Path, IFace, Name).
 
--spec new_call(Dest::string(), Path::string(), Name::string()) -> {ok, ebus:message()}.
+-spec new_call(Dest::string(), Path::string(), Name::string()) -> {ok, ebus:message()} | {error, term()}.
 new_call(Dest, Path, Name) ->
     new_call(Dest, Path, undefined, Name).
 
 -spec new_call(Dest::string() | undefined, Path::string(), IFace::string() | undefined, Name::string())
-              -> {ok, ebus:message()}.
+              -> {ok, ebus:message()} | {error, term()}.
 new_call(Dest, Path, IFace, Name) ->
     MaybeStr = fun(undefined) -> "";
                   (Str) -> Str
@@ -25,7 +25,7 @@ new_call(Dest, Path, IFace, Name) ->
 new_reply(Msg) ->
     ebus_nif:message_new_reply(Msg).
 
--spec new_reply(ebus:message(), ebus:signature(), [any()]) -> ebus:message().
+-spec new_reply(ebus:message(), ebus:signature(), [any()]) -> {ok, ebus:message()} | {error, term()}.
 new_reply(Msg, Types, Args) ->
     case new_reply(Msg)  of
         {ok, Reply} ->
