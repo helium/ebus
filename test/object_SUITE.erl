@@ -220,25 +220,35 @@ message_test(Config) ->
     meck:expect(message_test, init, fun([init_arg]) -> {ok, init_state};
                                     (A) -> erlang:error({bad_init, A})
                                  end),
-
     meck:expect(message_test, handle_message,
                fun("NoReply", Msg, State) ->
                        ?assertEqual(Path, ebus_message:path(Msg)),
                        {noreply, State};
+                  ("Reply", Msg, State) ->
+                       ?assertEqual(Path, ebus_message:path(Msg)),
+                       {reply, [bool], [true], State};
                   ("Stop", _, State) ->
                        {stop, normal, State}
                end),
+    meck:expect(message_test, terminate,
+                fun(_, _State) -> ok end),
+
     {ok, O} = ebus_object:start(B, Path, message_test, [init_arg], []),
     %% Validate that init was called with the start arguments
     ?assert(meck:called(message_test, init, [[init_arg]])),
 
-    {ok, Msg} = ebus_message:new_call(Dest, Path, "NoReply"),
-    ebus:send(B, Msg),
+    {ok, NoReplyMsg} = ebus_message:new_call(Dest, Path, "NoReply"),
+    ebus:send(B, NoReplyMsg),
     meck:wait(message_test, handle_message, ["NoReply", '_', '_'], 1000),
+
+    {ok, ReplyMsg} = ebus_message:new_call(Dest, Path, "Reply"),
+    ebus:send(B, ReplyMsg),
+    meck:wait(message_test, handle_message, ["Reply", '_', '_'], 1000),
 
     {ok, StopMsg} = ebus_message:new_call(Dest, Path, "Stop"),
     ebus:send(B, StopMsg),
     meck:wait(message_test, handle_message, ["Stop", '_', '_'], 1000),
+    meck:wait(message_test, terminate, '_', 1000),
     ?assert(not erlang:is_process_alive(O)),
 
     meck:validate(message_test),

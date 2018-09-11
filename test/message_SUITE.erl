@@ -5,6 +5,7 @@
 -export([all/0, init_per_testcase/2]).
 -export([signal_test/1,
          call_test/1,
+         reply_test/1,
          arg_int_test/1,
          arg_double_test/1,
          arg_bool_test/1,
@@ -18,6 +19,7 @@
 all() ->
     [ signal_test,
       call_test,
+      reply_test,
       arg_int_test,
       arg_double_test,
       arg_bool_test,
@@ -81,6 +83,17 @@ call_test(_Config) ->
                   ]),
     ok.
 
+reply_test(_Config) ->
+    {ok, M} = ebus_message:new_call("test.call.dest", "/test/call/Object", "test.call.Type", "Test"),
+    ok = ebus_message:serial(M, 1),
+    {ok, R} = ebus_message:new_reply(M),
+
+    ?assertEqual(1, ebus_message:reply_serial(R)),
+    ?assertEqual(undefined, ebus_message:interface(R)),
+    ?assertEqual(undefined, ebus_message:path(R)),
+    ?assertEqual(undefined, ebus_message:member(R)),
+
+    ok.
 
 arg_int_test(Config) ->
     M = proplists:get_value(message, Config),

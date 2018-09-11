@@ -10,8 +10,9 @@
          connection_add_match/2, connection_send/2, connection_dispatch/1,
          connection_set_filters/2,
          connection_register_object_path/3, connection_unregister_object_path/2]).
--export([message_new_signal/3, message_new_call/4,
-         message_append_args/3, message_get_args/1, message_get_serial/1,
+-export([message_new_signal/3, message_new_call/4, message_new_reply/1,
+         message_append_args/3, message_get_args/1,
+         message_get_serial/1, message_set_serial/2, message_get_reply_serial/1,
          message_get_destination/1, message_get_path/1, message_get_interface/1, message_get_member/1]).
 -export([watch_handle/2]).
 -export([timeout_handle/1]).
@@ -20,12 +21,18 @@
 %% Messages
 %%
 
--spec message_new_signal(Path::string(), IFace::string(), Name::string()) -> {ok, ebus:message()}.
+-spec message_new_signal(Path::string(), IFace::string(), Name::string())
+                        -> {ok, ebus:message()} | {error, term()}.
 message_new_signal(_,_,_) ->
     not_loaded(?LINE).
 
--spec message_new_call(Dest::string(), Path::string(), IFace::string(), Name::string()) -> {ok, ebus:message()}.
+-spec message_new_call(Dest::string(), Path::string(), IFace::string(), Name::string())
+                      -> {ok, ebus:message()} | {error, term()}.
 message_new_call(_,_,_,_) ->
+    not_loaded(?LINE).
+
+-spec message_new_reply(ebus:message()) -> {ok, ebus:message()} | {error, term()}.
+message_new_reply(_) ->
     not_loaded(?LINE).
 
 -spec message_append_args(ebus:message(), Signature::string(), Args::[any()]) -> ok | {error, string()}.
@@ -38,6 +45,14 @@ message_get_args(_) ->
 
 -spec message_get_serial(ebus:message()) -> non_neg_integer().
 message_get_serial(_) ->
+    not_loaded(?LINE).
+
+-spec message_set_serial(ebus:message(), non_neg_integer()) ->ok.
+message_set_serial(_, _) ->
+    not_loaded(?LINE).
+
+-spec message_get_reply_serial(ebus:message()) -> non_neg_integer().
+message_get_reply_serial(_) ->
     not_loaded(?LINE).
 
 -spec message_get_destination(ebus:message()) -> string() | undefined.

@@ -131,6 +131,30 @@ ebus_message_new_call(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
 
 
 ERL_NIF_TERM
+ebus_message_new_reply(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
+{
+    if (argc != 1)
+    {
+        return enif_make_badarg(env);
+    }
+
+    DBusMessage * message;
+    if (!get_dbus_message(env, argv[0], &message))
+    {
+        return enif_make_badarg(env);
+    }
+
+    DBusMessage * reply = dbus_message_new_method_return(message);
+    if (!reply)
+    {
+        return enif_make_tuple2(env, ATOM_ERROR, ATOM_ENOMEM);
+    }
+
+    return enif_make_tuple2(env, ATOM_OK, mk_dbus_message(env, reply));
+}
+
+
+ERL_NIF_TERM
 ebus_message_append_args(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
 {
     if (argc != 3)
@@ -225,6 +249,45 @@ ebus_message_get_serial(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
     }
 
     return enif_make_uint(env, dbus_message_get_serial(message));
+}
+
+ERL_NIF_TERM
+ebus_message_set_serial(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
+{
+    if (argc != 2)
+    {
+        return enif_make_badarg(env);
+    }
+
+    DBusMessage * message;
+    if (!get_dbus_message(env, argv[0], &message))
+    {
+        return enif_make_badarg(env);
+    }
+
+    unsigned int val;
+    enif_get_uint(env, argv[1], &val);
+
+    dbus_message_set_serial(message, val);
+
+    return ATOM_OK;
+}
+
+ERL_NIF_TERM
+ebus_message_get_reply_serial(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
+{
+    if (argc != 1)
+    {
+        return enif_make_badarg(env);
+    }
+
+    DBusMessage * message;
+    if (!get_dbus_message(env, argv[0], &message))
+    {
+        return enif_make_badarg(env);
+    }
+
+    return enif_make_uint(env, dbus_message_get_reply_serial(message));
 }
 
 

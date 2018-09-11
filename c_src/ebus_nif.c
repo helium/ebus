@@ -46,9 +46,12 @@ static ErlNifFunc nif_funcs[] = {
 
     {"message_new_signal", 3, ebus_message_new_signal, 0},
     {"message_new_call", 4, ebus_message_new_call, 0},
+    {"message_new_reply", 1, ebus_message_new_reply, 0},
     {"message_append_args", 3, ebus_message_append_args, ERL_NIF_DIRTY_JOB_CPU_BOUND},
     {"message_get_args", 1, ebus_message_get_args, ERL_NIF_DIRTY_JOB_CPU_BOUND},
     {"message_get_serial", 1, ebus_message_get_serial, 0},
+    {"message_set_serial", 2, ebus_message_set_serial, 0},
+    {"message_get_reply_serial", 1, ebus_message_get_reply_serial, 0},
     {"message_get_destination", 1, ebus_message_get_destination, 0},
     {"message_get_path", 1, ebus_message_get_path, 0},
     {"message_get_interface", 1, ebus_message_get_interface, 0},

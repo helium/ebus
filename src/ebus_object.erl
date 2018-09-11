@@ -7,9 +7,7 @@
 -type action() ::
         {signal, Interface::string(), Member::string()} |
         {signal, Interface::string(), Member::string(), Types::ebus:signature(), Args::[any()]} |
-        {send, Dest::string(), Interface::string(), Member::string()} |
-        {send, Dest::string(), Interface::string(), Member::string(), Types::ebus:signature(), Args::[any()]} |
-        {send, Message::ebus:message()}.
+        {reply, Msg::ebus:message(), Types::ebus:signature(), Args::[any()]}.
 
 -type handle_call_result() ::
         {reply, Reply :: term(), State :: any()} |
@@ -30,7 +28,7 @@
         {stop, Reason :: term(), State::any()}.
 
 -type handle_message_result() ::
-        {reply, Reply :: ebus:message(), State::any()} |
+        {reply, Types::ebus:signature(), Args::[any()]} |
         {noreply, State::any()} |
         {stop, Reason :: term(), State::any()}.
 
@@ -110,8 +108,8 @@ handle_info({handle_message, Msg}, State=#state{module=Module, state=ModuleState
     case erlang:function_exported(Module, handle_message, 3) of
         true ->
             case Module:handle_message(ebus_message:member(Msg), Msg, ModuleState0) of
-                {reply, ReplyMsg, ModuleState} ->
-                    {noreply, handle_action({send, ReplyMsg}, State#state{state=ModuleState})};
+                {reply, Types, Args, ModuleState} ->
+                    {noreply, handle_action({reply, Msg, Types, Args}, State#state{state=ModuleState})};
                 {noreply, ModuleState}  ->
                     {noreply, State#state{state=ModuleState}};
                 {stop, Reason, ModuleState} ->
@@ -151,14 +149,9 @@ handle_action({signal, Interface, Member, Types, Args}, State=#state{}) ->
     ok = ebus_message:append_args(Msg, Types, Args),
     ok = ebus:send(State#state.bus, Msg),
     State;
-handle_action({send, Dest, Interface, Member}, State=#state{}) ->
-    handle_action({send, Dest, Interface, Member, [], []}, State);
-handle_action({send, Dest, Interface, Member, Types, Args}, State=#state{}) ->
-    {ok, Msg}  = ebus_message:new_call(Dest, State#state.path, Interface, Member),
-    ok = ebus_message:append_args(Msg, Types, Args),
-    handle_action({send, Msg}, State);
-handle_action({send, Msg}, State=#state{}) ->
-    ok = ebus:send(State#state.bus, Msg),
+handle_action({reply, Msg, Types, Args}, State=#state{}) ->
+    {ok, Reply} = ebus_message:new_reply(Msg, Types, Args),
+    ok = ebus:send(State#state.bus, Reply),
     State;
 handle_action(_, State=#state{}) ->
     State.
