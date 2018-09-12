@@ -42,7 +42,7 @@ static ErlNifFunc nif_funcs[] = {
     {"connection_dispatch", 1, ebus_connection_dispatch, ERL_NIF_DIRTY_JOB_CPU_BOUND},
     {"connection_set_filters", 2, ebus_connection_set_filters, ERL_NIF_DIRTY_JOB_CPU_BOUND},
     {"connection_register_object_path", 3, ebus_connection_register_object_path, 0},
-    {"connection_unregister_object_path", 2, ebus_connection_register_object_path, 0},
+    {"connection_unregister_object_path", 2, ebus_connection_unregister_object_path, 0},
 
     {"message_new_signal", 3, ebus_message_new_signal, 0},
     {"message_new_call", 4, ebus_message_new_call, 0},

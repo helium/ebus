@@ -44,7 +44,7 @@
 -behavior(gen_server).
 
 %% gen_server
--export([start/5, start_link/5, init/1,
+-export([start/5, stop/2, start_link/5, init/1,
          handle_call/3, handle_cast/2, handle_info/2,
          terminate/2]).
 
@@ -58,6 +58,9 @@
 start(Bus, Path, Module, Args, Options) ->
     gen_server:start(?MODULE, [Bus, Path, Module, Args], Options).
 
+stop(Pid, Reason) ->
+    gen_server:cast(Pid, {stop, Reason}).
+
 start_link(Bus, Path, Module, Args, Options) ->
     gen_server:start_link(?MODULE, [Bus, Path, Module, Args], Options).
 
@@ -67,7 +70,8 @@ init([Bus, Path, Module, Args]) ->
             case ebus:register_object_path(Bus, Path, self()) of
                 ok ->
                     {ok, #state{bus=Bus, path=Path, module=Module, state=MState}};
-                Other -> Other
+                Other ->
+                    {stop, Other}
             end;
         Other -> Other
     end.
@@ -91,6 +95,8 @@ handle_call(Msg, From, State=#state{module=Module, state=ModuleState0}) ->
         false -> {reply, ok, State}
     end.
 
+handle_cast({stop, Reason}, State=#state{}) ->
+    {stop, Reason, State};
 handle_cast(Msg, State=#state{module=Module, state=ModuleState0}) ->
     case erlang:function_exported(Module, handle_cast, 2) of
         true -> case Module:handle_cast(Msg, ModuleState0) of
@@ -132,7 +138,8 @@ handle_info(Msg, State=#state{module=Module, state=ModuleState0}) ->
         false -> {noreply, State}
     end.
 
-terminate(Reason, #state{module=Module, state=ModuleState}) ->
+terminate(Reason, State=#state{module=Module, state=ModuleState}) ->
+    ebus:unregister_object_path(State#state.bus, State#state.path),
     case erlang:function_exported(Module, terminate, 2) of
         true -> Module:terminate(Reason, ModuleState);
         false -> ok

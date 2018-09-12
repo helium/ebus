@@ -278,7 +278,7 @@ ebus_connection_send(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
         return enif_make_tuple2(env, ATOM_ERROR, ATOM_ENOMEM);
     }
 
-    dbus_connection_read_write(connection, -1);
+    dbus_connection_read_write(connection, 1);
     return ATOM_OK;
 }
 
@@ -328,7 +328,7 @@ ebus_connection_call(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
         return enif_make_tuple2(env, ATOM_ERROR, ATOM_ENOMEM);
     }
 
-    dbus_connection_read_write(connection, -1);
+    dbus_connection_read_write(connection, 1);
     return ATOM_OK;
 }
 

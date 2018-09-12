@@ -3,7 +3,7 @@
 -behavior(gen_server).
 
 %% gen_server
--export([start/0, start/1,
+-export([start/0, start/1, stop/2,
          start_link/0, start_link/1, init/1,
          handle_call/3, handle_cast/2, handle_info/2,
          terminate/2]).
@@ -66,6 +66,7 @@
 -record(state, {
                 connection :: connection(),
                 timeouts=#{} :: #{Timeout::reference() => Timer::reference()},
+                object_monitors=[] :: [{Object::pid(), Path::string(), Monitor::reference()}],
                 filters=[] :: [{reference(), filter()}],
                 filter_targets=#{} :: #{reference() => pid()},
                 filter_next_id=0 :: non_neg_integer()
@@ -111,6 +112,10 @@
 
 %% API
 %%
+
+-spec stop(pid(), Reason::term()) -> ok.
+stop(Pid, Reason) ->
+    gen_server:cast(Pid, {stop, Reason}).
 
 -spec unique_name(pid()) -> string().
 unique_name(Pid) ->
@@ -169,9 +174,6 @@ start_link(Type) ->
     gen_server:start_link(?MODULE, [bus_type(Type)], []).
 
 init([IntType]) ->
-    application:set_env(lager, error_logger_flush_queue, false),
-    application:ensure_all_started(lager),
-    lager:set_loglevel(lager_console_backend, debug),
     erlang:process_flag(trap_exit, true),
     {ok, Conn} = ebus_nif:connection_get(IntType, self()),
     {ok, #state{connection=Conn}}.
@@ -222,9 +224,23 @@ handle_call({add_filter, Target, Filter}, _From,
             {reply, {error, Err}, State}
     end;
 handle_call({register_object_path, Path, ObjectPid}, _From, State=#state{connection=Conn}) ->
-    {reply, ebus_nif:connection_register_object_path(Conn, Path, ObjectPid), State};
+    case ebus_nif:connection_register_object_path(Conn, Path, ObjectPid) of
+        {error, Reason} ->
+            {reply, {error, Reason}, State};
+        ok ->
+            NewMonitors = lists:keystore(ObjectPid, 1, State#state.object_monitors,
+                                         {ObjectPid, Path, erlang:monitor(process, ObjectPid)}),
+            {reply, ok, State#state{object_monitors=NewMonitors}}
+        end;
 handle_call({unregister_object_path, Path}, _From, State=#state{connection=Conn}) ->
-    {reply, ebus_nif:connection_unregister_object_path(Conn, Path), State};
+    case lists:keytake(Path, 2, State#state.object_monitors) of
+        false ->
+            {reply, {error, not_found}, State};
+        {value, {ObjectPid, Path, Monitor}, NewMonitors} ->
+            erlang:demonitor(Monitor),
+            {reply, ebus_nif:connection_unregister_object_path(Conn, Path),
+             State#state{object_monitors=NewMonitors}}
+    end;
 
 handle_call(Msg, _From, State=#state{}) ->
     lager:warning("Unhandled call ~p", [Msg]),
@@ -245,6 +261,9 @@ handle_cast({remove_filter, Ref},
         {error, Err} ->
             {reply, {error, Err}, State}
     end;
+handle_cast({stop, Reason}, State=#state{}) ->
+    {stop, Reason, State};
+
 handle_cast(Msg, State=#state{}) ->
     lager:warning("Unhandled cast ~p", [Msg]),
     {noreply, State}.
@@ -303,6 +322,15 @@ handle_info({timeout, Key, Ref}, State=#state{timeouts=Timeouts, connection=Conn
             self() ! {dispatch_status, ebus_nif:connection_dispatch(Conn)},
             {noreply, State#state{timeouts=NewTimeouts}}
     end;
+handle_info({'DOWN', MonitorRef, process, Pid, _}, State=#state{connection=Conn}) ->
+    case lists:keytake(Pid, 1, State#state.object_monitors) of
+        false ->
+            {noreply, State};
+        {value, {Pid, Path, MonitorRef}, NewMonitors} ->
+            ebus_nif:connection_unregister_object_path(Conn, Path),
+            {noreply, State#state{object_monitors=NewMonitors}}
+    end;
+
 
 handle_info(Msg, State=#state{}) ->
     lager:warning("Unhandled info ~p", [Msg]),

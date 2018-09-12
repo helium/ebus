@@ -179,6 +179,7 @@ iter_append_map(ErlNifEnv *               env,
 
     ERL_NIF_TERM key;
     ERL_NIF_TERM value;
+    ret = TRUE;
     while (enif_map_iterator_get_pair(env, &map_iter, &key, &value))
     {
         // reset the signature iterator
@@ -277,6 +278,9 @@ ebus_message_append_arg(ErlNifEnv *         env,
     case DBUS_TYPE_DOUBLE:
         if (enif_get_double(env, term, &v.dbl))
         {
+            ret = dbus_message_iter_append_basic(appender, sig_type, &v.dbl);
+        } else if (enif_get_int64(env, term, &v.i64)) {
+            v.dbl = v.i64;
             ret = dbus_message_iter_append_basic(appender, sig_type, &v.dbl);
         }
         break;
