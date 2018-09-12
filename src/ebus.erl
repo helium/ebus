@@ -13,7 +13,7 @@
          request_name/3, release_name/2,
          add_match/2,
          add_filter/3, remove_filter/2,
-         send/2,
+         send/2, call/4,
          register_object_path/3, unregister_object_path/2]).
 
 -type connection() :: reference().
@@ -22,7 +22,7 @@
 -export_type([connection/0, bus_type/0, watch/0]).
 
 -type filter() :: #{
-                    type => signal | call,
+                    type => message_type(),
                     destination => string(),
                     path => string(),
                     interface => string(),
@@ -31,6 +31,7 @@
 -export_type([filter/0]).
 
 -type message() :: reference().
+-type message_type() :: call | reply | signal | error | undefined.
 -type signature() :: [value_type()].
 -type value_type() :: byte
                     | bool
@@ -48,7 +49,7 @@
                     | {array, value_type()}
                     | {struct, [value_type()]}
                     | {dict, KeyType::value_type(), ValueType::value_type}.
--export_type([message/0, signature/0, value_type/0]).
+-export_type([message/0, message_type/0, signature/0, value_type/0]).
 
 -type request_name_opts() :: [request_name_opt()].
 -type request_name_opt() :: {replace_existing, boolean()}
@@ -102,9 +103,6 @@
 -define(WATCH_ERROR,    4).
 -define(WATCH_HANGUP,   8).
 
--define(MESSAGE_TYPE_METHOD_CALL, 1).
--define(MESSAGE_TYPE_SIGNAL, 4).
-
 %% There is more data to potentially convert to messages.
 -define(DISPATCH_DATA_REMAINS, 0).
 %% All currently available data has been processed.
@@ -143,6 +141,10 @@ remove_filter(Pid, Ref) ->
 send(Pid, Msg) ->
     gen_server:call(Pid, {send, Msg}).
 
+-spec call(pid(), message(), Handler::pid(), Timeout::integer()) -> ok | {error, term()}.
+call(Pid, Msg, Handler, Timeout) ->
+    gen_server:call(Pid, {call, Msg, Handler, Timeout}).
+
 -spec register_object_path(pid(), string(), pid()) -> ok | {error, term()}.
 register_object_path(Pid, Path, ObjectPid) ->
     gen_server:call(Pid, {register_object_path, Path, ObjectPid}).
@@ -167,6 +169,9 @@ start_link(Type) ->
     gen_server:start_link(?MODULE, [bus_type(Type)], []).
 
 init([IntType]) ->
+    application:set_env(lager, error_logger_flush_queue, false),
+    application:ensure_all_started(lager),
+    lager:set_loglevel(lager_console_backend, debug),
     erlang:process_flag(trap_exit, true),
     {ok, Conn} = ebus_nif:connection_get(IntType, self()),
     {ok, #state{connection=Conn}}.
@@ -203,6 +208,8 @@ handle_call({add_match, Rule}, _From, State=#state{connection=Conn}) ->
     {reply, ebus_nif:connection_add_match(Conn, Rule), State};
 handle_call({send, Msg}, _From, State=#state{connection=Conn}) ->
     {reply, ebus_nif:connection_send(Conn, Msg), State};
+handle_call({call, Msg, Handler, Timeout}, _From, State=#state{connection=Conn}) ->
+    {reply, ebus_nif:connection_call(Conn, Msg, Handler, Timeout), State};
 handle_call({add_filter, Target, Filter}, _From,
             State=#state{connection=Conn, filter_next_id=FilterId, filters=Filters, filter_targets=Targets}) ->
     NewFilters = [{FilterId, Filter} | Filters],
@@ -274,9 +281,9 @@ handle_info({dispatch_status, Status}, State=#state{connection=Conn}) ->
             lager:error("DBus is asking for more memory")
     end,
     {noreply, State};
-handle_info({add_timeout, Ref, Millis}, State=#state{timeouts=Timeouts}) ->
-    Timer = erlang:send_after(Millis, self(), {imeout, Ref}),
-    {noreply, State#state{timeouts=maps:put(Ref, Timer, Timeouts)}};
+handle_info({add_timeout, Key, Ref, Millis}, State=#state{timeouts=Timeouts}) ->
+    Timer = erlang:send_after(Millis, self(), {timeout, Key, Ref}),
+    {noreply, State#state{timeouts=maps:put(Key, Timer, Timeouts)}};
 handle_info({remove_timeout, Ref}, State=#state{timeouts=Timeouts}) ->
     case maps:take(Ref, Timeouts) of
         error ->
@@ -285,8 +292,8 @@ handle_info({remove_timeout, Ref}, State=#state{timeouts=Timeouts}) ->
             erlang:cancel_timer(Timer),
             {noreply, State#state{timeouts=NewTimeouts}}
     end;
-handle_info({timeout, Ref}, State=#state{timeouts=Timeouts, connection=Conn}) ->
-    case maps:take(Ref, Timeouts) of
+handle_info({timeout, Key, Ref}, State=#state{timeouts=Timeouts, connection=Conn}) ->
+    case maps:take(Key, Timeouts) of
         error ->
             %% Timer was already canceled by nif through a
             %% remove_timeout

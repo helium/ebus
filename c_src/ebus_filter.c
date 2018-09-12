@@ -157,7 +157,7 @@ mk_ebus_filter(ErlNifEnv * env, ERL_NIF_TERM filter, ebus_filter * dest)
 
     ERL_NIF_TERM term;
     if (enif_get_map_value(env, map, ATOM_TYPE, &term)
-        && !enif_get_int(env, term, &dest->type))
+        && !get_dbus_message_type(env, term, &dest->type))
         return FALSE;
 
     if (!mk_ebus_filter_string(env, map, ATOM_DESTINATION, &dest->destination))

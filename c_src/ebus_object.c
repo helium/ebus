@@ -2,6 +2,7 @@
 #include "ebus_message.h"
 
 ERL_NIF_TERM ATOM_HANDLE_MESSAGE;
+ERL_NIF_TERM ATOM_HANDLE_REPLY;
 
 
 static ErlNifResourceType * DBUS_OBJECT_RESOURCE;
@@ -37,6 +38,22 @@ cb_object_handle_message(DBusConnection * connection, DBusMessage * message, voi
 
 
 void
+cb_object_handle_reply(DBusPendingCall * pending, void * data)
+{
+    dbus_object * state = (dbus_object *)data;
+    // Take the reply which should give us the ref for the returned
+    // message
+    DBusMessage * reply   = dbus_pending_call_steal_reply(pending);
+    ErlNifEnv *   msg_env = enif_alloc_env();
+    ERL_NIF_TERM  msg =
+        enif_make_tuple2(msg_env, ATOM_HANDLE_REPLY, mk_dbus_message(msg_env, reply));
+    enif_send(NULL, &state->pid, msg_env, msg);
+    enif_free_env(msg_env);
+    // let go of the pending call
+    dbus_pending_call_unref(pending);
+}
+
+void
 ebus_object_load(ErlNifEnv * env)
 {
     int flags = ERL_NIF_RT_CREATE | ERL_NIF_RT_TAKEOVER;
@@ -44,4 +61,5 @@ ebus_object_load(ErlNifEnv * env)
         enif_open_resource_type(env, NULL, "dbus_object", NULL, flags, NULL);
 
     ATOM(ATOM_HANDLE_MESSAGE, "handle_message");
+    ATOM(ATOM_HANDLE_REPLY, "handle_reply");
 }

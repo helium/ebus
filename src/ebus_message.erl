@@ -2,8 +2,8 @@
 
 -export([new_call/3, new_call/4, new_reply/1, new_reply/3,
          new_signal/3, append_args/3, args/1, to_map/1,
-         serial/1, serial/2, reply_serial/1,
-         destination/1, interface/1, path/1, member/1]).
+         type/1, serial/1, serial/2, reply_serial/1,
+         destination/1, interface/1, path/1, member/1, error/1]).
 
 -spec new_signal(Path::string(), IFace::string(), Name::string()) -> {ok, ebus:message()} | {error, term()}.
 new_signal(Path, IFace, Name) ->
@@ -37,13 +37,17 @@ new_reply(Msg, Types, Args) ->
             {error, Reason}
     end.
 
--spec append_args(ebus:message(), ebus:signature(), [any()]) -> ok | {error, string()}.
+-spec append_args(ebus:message(), ebus:signature(), [any()]) -> ok | {error, term()}.
 append_args(Msg, Signature, Args) when length(Signature) == length(Args) ->
     ebus_nif:message_append_args(Msg, lists:flatten(encode_signature(Signature)), Args).
 
 -spec args(ebus:message()) -> {ok, [any()]} | {error, string()}.
 args(Msg) ->
     ebus_nif:message_get_args(Msg).
+
+-spec type(ebus:message()) -> ebus:message_type().
+type(Msg) ->
+    ebus_nif:message_get_type(Msg).
 
 -spec serial(ebus:message()) -> non_neg_integer().
 serial(Msg) ->
@@ -73,8 +77,13 @@ path(Msg) ->
 member(Msg) ->
     ebus_nif:message_get_member(Msg).
 
+-spec error(ebus:message()) -> ok | {error, term()}.
+error(Msg) ->
+    ebus_nif:message_get_error(Msg).
+
 to_map(Msg) ->
     #{
+      type => type(Msg),
       serial => serial(Msg),
       path => path(Msg),
       interface => interface(Msg),

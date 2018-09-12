@@ -92,6 +92,9 @@ reply_test(_Config) ->
     ?assertEqual(undefined, ebus_message:interface(R)),
     ?assertEqual(undefined, ebus_message:path(R)),
     ?assertEqual(undefined, ebus_message:member(R)),
+    ?assertEqual(call, ebus_message:type(M)),
+    ?assertEqual(reply, ebus_message:type(R)),
+    ?assertEqual(ok, ebus_message:error(R)),
 
     ok.
 

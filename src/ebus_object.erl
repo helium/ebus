@@ -109,13 +109,15 @@ handle_info({handle_message, Msg}, State=#state{module=Module, state=ModuleState
         true ->
             case Module:handle_message(ebus_message:member(Msg), Msg, ModuleState0) of
                 {reply, Types, Args, ModuleState} ->
-                    {noreply, handle_action({reply, Msg, Types, Args}, State#state{state=ModuleState})};
+                    {noreply, handle_action({reply, Msg, Types, Args},
+                                            State#state{state=ModuleState})};
                 {noreply, ModuleState}  ->
                     {noreply, State#state{state=ModuleState}};
                 {stop, Reason, ModuleState} ->
                     {stop, Reason, State#state{state=ModuleState}}
             end;
-        false -> {noreply, State}
+        false ->
+            {noreply, State}
     end;
 handle_info(Msg, State=#state{module=Module, state=ModuleState0}) ->
     case erlang:function_exported(Module, handle_info, 2) of

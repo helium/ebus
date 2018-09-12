@@ -63,9 +63,10 @@ cb_add_timeout(DBusTimeout * timeout, void * data)
 
     int          ms      = dbus_timeout_get_interval(timeout);
     ErlNifEnv *  msg_env = enif_alloc_env();
-    ERL_NIF_TERM msg     = enif_make_tuple3(msg_env,
+    ERL_NIF_TERM msg     = enif_make_tuple4(msg_env,
                                         ATOM_ADD_TIMEOUT,
                                         enif_make_uint64(msg_env, res->timeout_id),
+                                        enif_make_resource(msg_env, res),
                                         enif_make_uint(msg_env, ms));
 
     enif_send(NULL, &state->handler, msg_env, msg);

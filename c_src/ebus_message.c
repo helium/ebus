@@ -1,6 +1,11 @@
 #include "ebus_message.h"
+#include "ebus_error.h"
 #include "ebus_message_append_arg.h"
 #include "ebus_message_list_args.h"
+
+ERL_NIF_TERM ATOM_CALL;
+ERL_NIF_TERM ATOM_SIGNAL;
+ERL_NIF_TERM ATOM_REPLY;
 
 static ErlNifResourceType * DBUS_MESSAGE_RESOURCE;
 
@@ -40,6 +45,40 @@ get_dbus_message(ErlNifEnv * env, ERL_NIF_TERM term, DBusMessage ** dest)
     return true;
 }
 
+int
+get_dbus_message_type(ErlNifEnv * env, ERL_NIF_TERM term, int * dest)
+{
+    int result = -1;
+    if (term == ATOM_ERROR)
+        result = DBUS_MESSAGE_TYPE_ERROR;
+    else if (term == ATOM_CALL)
+        result = DBUS_MESSAGE_TYPE_METHOD_CALL;
+    else if (term == ATOM_SIGNAL)
+        result = DBUS_MESSAGE_TYPE_SIGNAL;
+    else if (term == ATOM_REPLY)
+        result = DBUS_MESSAGE_TYPE_METHOD_RETURN;
+
+    *dest = result;
+    return result > 0;
+}
+
+static ERL_NIF_TERM
+mk_dbus_message_type(ErlNifEnv *env, int type)
+{
+    switch (type)
+    {
+    case DBUS_MESSAGE_TYPE_ERROR:
+        return ATOM_ERROR;
+    case DBUS_MESSAGE_TYPE_METHOD_CALL:
+        return ATOM_CALL;
+    case DBUS_MESSAGE_TYPE_SIGNAL:
+        return ATOM_SIGNAL;
+    case DBUS_MESSAGE_TYPE_METHOD_RETURN:
+        return ATOM_REPLY;
+    default:
+        return ATOM_UNDEFINED;
+    }
+}
 
 ERL_NIF_TERM
 ebus_message_new_signal(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
@@ -235,6 +274,23 @@ ebus_message_get_args(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
 }
 
 ERL_NIF_TERM
+ebus_message_get_type(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
+{
+    if (argc != 1)
+    {
+        return enif_make_badarg(env);
+    }
+
+    DBusMessage * message;
+    if (!get_dbus_message(env, argv[0], &message))
+    {
+        return enif_make_badarg(env);
+    }
+
+    return mk_dbus_message_type(env, dbus_message_get_type(message));
+}
+
+ERL_NIF_TERM
 ebus_message_get_serial(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
 {
     if (argc != 1)
@@ -356,10 +412,32 @@ ebus_message_get_member(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
     return mk_str_maybe(env, str);
 }
 
+ERL_NIF_TERM
+ebus_message_get_error(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
+{
+    DBusMessage * message;
+    if (argc != 1 || !get_dbus_message(env, argv[0], &message))
+    {
+        return enif_make_badarg(env);
+    }
+
+    DBusError error;
+    dbus_error_init(&error);
+    if (!dbus_set_error_from_message(&error, message)) {
+        return ATOM_OK;
+    }
+
+    return handle_dbus_error(env, &error);
+}
+
 void
 ebus_message_load(ErlNifEnv * env)
 {
     int flags = ERL_NIF_RT_CREATE | ERL_NIF_RT_TAKEOVER;
     DBUS_MESSAGE_RESOURCE =
         enif_open_resource_type(env, NULL, "dbus_message", dbus_message_dtor, flags, NULL);
+
+    ATOM(ATOM_CALL, "call");
+    ATOM(ATOM_SIGNAL, "signal");
+    ATOM(ATOM_REPLY, "reply");
 }

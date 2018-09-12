@@ -28,7 +28,6 @@ ERL_NIF_TERM ATOM_ENOMEM;
 ERL_NIF_TERM ATOM_TRUE;
 ERL_NIF_TERM ATOM_FALSE;
 ERL_NIF_TERM ATOM_UNDEFINED;
-ERL_NIF_TERM ATOM_UNKNOWN;
 ERL_NIF_TERM ATOM_ALREADY;
 
 static ErlNifFunc nif_funcs[] = {
@@ -39,6 +38,7 @@ static ErlNifFunc nif_funcs[] = {
     {"connection_release_name", 2, ebus_connection_release_name, 0},
     {"connection_add_match", 2, ebus_connection_add_match, ERL_NIF_DIRTY_JOB_IO_BOUND},
     {"connection_send", 2, ebus_connection_send, ERL_NIF_DIRTY_JOB_IO_BOUND},
+    {"connection_call", 4, ebus_connection_call, ERL_NIF_DIRTY_JOB_IO_BOUND},
     {"connection_dispatch", 1, ebus_connection_dispatch, ERL_NIF_DIRTY_JOB_CPU_BOUND},
     {"connection_set_filters", 2, ebus_connection_set_filters, ERL_NIF_DIRTY_JOB_CPU_BOUND},
     {"connection_register_object_path", 3, ebus_connection_register_object_path, 0},
@@ -49,6 +49,7 @@ static ErlNifFunc nif_funcs[] = {
     {"message_new_reply", 1, ebus_message_new_reply, 0},
     {"message_append_args", 3, ebus_message_append_args, ERL_NIF_DIRTY_JOB_CPU_BOUND},
     {"message_get_args", 1, ebus_message_get_args, ERL_NIF_DIRTY_JOB_CPU_BOUND},
+    {"message_get_type", 1, ebus_message_get_type, 0},
     {"message_get_serial", 1, ebus_message_get_serial, 0},
     {"message_set_serial", 2, ebus_message_set_serial, 0},
     {"message_get_reply_serial", 1, ebus_message_get_reply_serial, 0},
@@ -56,6 +57,7 @@ static ErlNifFunc nif_funcs[] = {
     {"message_get_path", 1, ebus_message_get_path, 0},
     {"message_get_interface", 1, ebus_message_get_interface, 0},
     {"message_get_member", 1, ebus_message_get_member, 0},
+    {"message_get_error", 1, ebus_message_get_error, 0},
 
     {"watch_handle", 2, ebus_watch_handle, ERL_NIF_DIRTY_JOB_IO_BOUND},
 
@@ -75,7 +77,6 @@ load(ErlNifEnv * env, void ** priv_data, ERL_NIF_TERM load_info)
     ATOM(ATOM_TRUE, "true");
     ATOM(ATOM_FALSE, "false");
     ATOM(ATOM_UNDEFINED, "undefined");
-    ATOM(ATOM_UNKNOWN, "unknown");
     ATOM(ATOM_ALREADY, "already");
 
     ebus_connection_load(env);

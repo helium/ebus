@@ -28,5 +28,7 @@ cb_object_unregister(DBusConnection * connection, void * data);
 DBusHandlerResult
 cb_object_handle_message(DBusConnection *connection, DBusMessage *message, void *data);
 
+void
+cb_object_handle_reply(DBusPendingCall * pending, void * data);
 
 #endif /* EBUS_OBJECT_H */

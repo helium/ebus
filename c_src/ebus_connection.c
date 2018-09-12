@@ -273,9 +273,58 @@ ebus_connection_send(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
         return enif_make_badarg(env);
     }
 
-    unsigned int serial;
-    if (!dbus_connection_send(connection, message, &serial))
+    if (!dbus_connection_send(connection, message, NULL))
     {
+        return enif_make_tuple2(env, ATOM_ERROR, ATOM_ENOMEM);
+    }
+
+    dbus_connection_read_write(connection, -1);
+    return ATOM_OK;
+}
+
+ERL_NIF_TERM
+ebus_connection_call(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
+{
+    if (argc != 4)
+    {
+        return enif_make_badarg(env);
+    }
+
+    DBusConnection * connection;
+    if (!get_dbus_connection(env, argv[0], &connection))
+    {
+        return enif_make_badarg(env);
+    }
+
+    DBusMessage * message;
+    if (!get_dbus_message(env, argv[1], &message))
+    {
+        return enif_make_badarg(env);
+    }
+
+    ErlNifPid pid;
+    if (!enif_get_local_pid(env, argv[2], &pid))
+    {
+        return enif_make_badarg(env);
+    }
+
+    int timeout;
+    if (!enif_get_int(env, argv[3], &timeout))
+    {
+        return enif_make_badarg(env);
+    }
+
+    DBusPendingCall * pending;
+    if (!dbus_connection_send_with_reply(connection, message, &pending, timeout))
+    {
+        return enif_make_tuple2(env, ATOM_ERROR, ATOM_ENOMEM);
+    }
+
+    dbus_object * obj = mk_dbus_object_resource(env, &pid);
+    if (!dbus_pending_call_set_notify(pending, cb_object_handle_reply, obj, NULL))
+    {
+        enif_release_resource(obj);
+        dbus_pending_call_unref(pending);
         return enif_make_tuple2(env, ATOM_ERROR, ATOM_ENOMEM);
     }
 

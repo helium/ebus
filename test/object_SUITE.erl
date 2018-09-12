@@ -217,9 +217,10 @@ message_test(Config) ->
     ebus:add_match(B, lists:flatten(io_lib:format("path=~s", [Path]))),
 
     meck:new(message_test, [non_strict]),
-    meck:expect(message_test, init, fun([init_arg]) -> {ok, init_state};
-                                    (A) -> erlang:error({bad_init, A})
-                                 end),
+    meck:expect(message_test, init,
+                fun([init_arg]) -> {ok, init_state};
+                   (A) -> erlang:error({bad_init, A})
+                end),
     meck:expect(message_test, handle_message,
                fun("NoReply", Msg, State) ->
                        ?assertEqual(Path, ebus_message:path(Msg)),

@@ -11,7 +11,6 @@ extern ERL_NIF_TERM ATOM_ENOMEM;
 extern ERL_NIF_TERM ATOM_TRUE;
 extern ERL_NIF_TERM ATOM_FALSE;
 extern ERL_NIF_TERM ATOM_UNDEFINED;
-extern ERL_NIF_TERM ATOM_UNKNOWN;
 extern ERL_NIF_TERM ATOM_ALREADY;
 
 #define GET_STR(N, A)                                                          \

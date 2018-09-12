@@ -7,13 +7,14 @@
 
 -export([connection_get/2, connection_close/1, connection_unique_name/1,
          connection_request_name/3, connection_release_name/2,
-         connection_add_match/2, connection_send/2, connection_dispatch/1,
+         connection_add_match/2, connection_send/2, connection_call/4, connection_dispatch/1,
          connection_set_filters/2,
          connection_register_object_path/3, connection_unregister_object_path/2]).
 -export([message_new_signal/3, message_new_call/4, message_new_reply/1,
-         message_append_args/3, message_get_args/1,
+         message_append_args/3, message_get_args/1, message_get_type/1,
          message_get_serial/1, message_set_serial/2, message_get_reply_serial/1,
-         message_get_destination/1, message_get_path/1, message_get_interface/1, message_get_member/1]).
+         message_get_destination/1, message_get_path/1, message_get_interface/1, message_get_member/1,
+         message_get_error/1]).
 -export([watch_handle/2]).
 -export([timeout_handle/1]).
 
@@ -43,6 +44,10 @@ message_append_args(_, _, _) ->
 message_get_args(_) ->
     not_loaded(?LINE).
 
+-spec message_get_type(ebus:message()) -> ebus:message_type().
+message_get_type(_) ->
+    not_loaded(?LINE).
+
 -spec message_get_serial(ebus:message()) -> non_neg_integer().
 message_get_serial(_) ->
     not_loaded(?LINE).
@@ -69,6 +74,10 @@ message_get_interface(_) ->
 
 -spec message_get_member(ebus:message()) -> string() | undefined.
 message_get_member(_) ->
+    not_loaded(?LINE).
+
+-spec message_get_error(ebus:message()) -> ok | {error, term()}.
+message_get_error(_) ->
     not_loaded(?LINE).
 
 %%
@@ -102,6 +111,10 @@ connection_release_name(_, _) ->
 
 -spec connection_send(ebus:connection(), ebus:message()) -> ok | {error, enomem}.
 connection_send(_,_) ->
+    not_loaded(?LINE).
+
+-spec connection_call(ebus:connection(), ebus:message(), pid(), integer()) -> ok | {error, enomem}.
+connection_call(_,_,_,_) ->
     not_loaded(?LINE).
 
 -spec connection_dispatch(ebus:connection()) -> non_neg_integer().
