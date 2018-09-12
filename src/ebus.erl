@@ -236,7 +236,7 @@ handle_call({unregister_object_path, Path}, _From, State=#state{connection=Conn}
     case lists:keytake(Path, 2, State#state.object_monitors) of
         false ->
             {reply, {error, not_found}, State};
-        {value, {ObjectPid, Path, Monitor}, NewMonitors} ->
+        {value, {_ObjectPid, Path, Monitor}, NewMonitors} ->
             erlang:demonitor(Monitor),
             {reply, ebus_nif:connection_unregister_object_path(Conn, Path),
              State#state{object_monitors=NewMonitors}}
