@@ -7,13 +7,14 @@
 -export([call/2, call/4, call/5]).
 
 %% gen_server
--export([start/4, start_link/4, init/1,
+-export([start/4, start/5, start_link/4, start_link/5, init/1,
         handle_call/3, handle_cast/2, handle_info/2]).
 
 -record(state, {
                 bus :: pid(),
                 dest :: string(),
                 path :: string(),
+                interface=undefined :: string() | undefined,
                 calls=#{} :: #{Serial::non_neg_integer() => From::term()}
                }).
 
@@ -34,21 +35,28 @@ call(Pid, Member, Types, Args) ->
 call(Pid, Member, Types, Args, Timeout) ->
     gen_server:call(Pid, {call, Member, Types, Args, Timeout}, infinity).
 
+
 %% gen_server
 %%
 
 start(Bus, Dest, Path, Options) ->
-    gen_server:start(?MODULE, [Bus, Dest, Path], Options).
+    start(Bus, Dest, Path, undefined, Options).
+
+start(Bus, Dest, Path, IFace, Options) ->
+    gen_server:start(?MODULE, [Bus, Dest, Path, IFace], Options).
 
 start_link(Bus, Dest, Path, Options) ->
-    gen_server:start_link(?MODULE, [Bus, Dest, Path], Options).
+    start_link(Bus, Dest, Path, undefined, Options).
 
-init([Bus, Dest, Path]) ->
-    {ok, #state{bus=Bus, dest=Dest, path=Path}}.
+start_link(Bus, Dest, Path, IFace, Options) ->
+    gen_server:start_link(?MODULE, [Bus, Dest, Path, IFace], Options).
+
+init([Bus, Dest, Path, IFace]) ->
+    {ok, #state{bus=Bus, dest=Dest, path=Path, interface=IFace}}.
 
 
 handle_call({call, Member, Types, Args, Timeout}, From, State=#state{}) ->
-    case ebus_message:new_call(State#state.dest, State#state.path, Member) of
+    case ebus_message:new_call(State#state.dest, State#state.path, State#state.interface, Member) of
         {ok, Msg} ->
             case ebus_message:append_args(Msg, Types, Args) of
                 ok ->
@@ -66,9 +74,11 @@ handle_call({call, Member, Types, Args, Timeout}, From, State=#state{}) ->
             {reply, {error, Reason}, State}
     end;
 
+
 handle_call(Msg, _From, State=#state{}) ->
     lager:warning("Unhandled call ~p", [Msg]),
     {noreply, State}.
+
 
 handle_cast(Msg, State=#state{}) ->
     lager:warning("Unhandled cast ~p", [Msg]),
