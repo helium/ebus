@@ -33,7 +33,7 @@ end_per_testcase(_, Config) ->
     end.
 
 bad_bus_test(_Config) ->
-    {'EXIT', {badarg, _}}= (catch ebus:start_link(noway)),
+    ?assertError(badarg, ebus:start_link(noway)),
 
     ok.
 

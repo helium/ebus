@@ -96,9 +96,12 @@ cast_test(Config) ->
     B = ?config(bus, Config),
 
     meck:new(cast_test, [non_strict]),
-    meck:expect(cast_test, init, fun([init_arg]) -> {ok, init_state};
-                                    (A) -> erlang:error({bad_init, A})
-                                 end),
+    meck:expect(cast_test, init,
+                fun([init_arg]) ->
+                        {ok, init_state};
+                   (A) ->
+                        erlang:error({bad_init, A})
+                end),
     meck:expect(cast_test, handle_cast,
                 fun(_, State) when State /= init_state ->
                         erlang:error({bad_state, State});
@@ -142,8 +145,6 @@ cast_test(Config) ->
 
     %% Check stop
     gen_server:cast(O, {stop, stop_reason}),
-    meck:wait(cast_test, handle_cast, [{stop, '_'}, '_'], 1000),
-    meck:wait(cast_test, terminate, '_', 1000),
 
     meck:validate(cast_test),
     meck:unload(cast_test),

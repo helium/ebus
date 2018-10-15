@@ -49,8 +49,7 @@ signal_test(_Config) ->
     0 = ebus_message:serial(M),
 
     lists:foreach(fun({Path, IFace, Member}) ->
-                          ?assertMatch({'EXIT', {badarg, _}},
-                                       (catch ebus_message:new_signal(Path, IFace, Member)))
+                          ?assertError(badarg, ebus_message:new_signal(Path, IFace, Member))
                   end,
                   [
                    {"badpath", "test.signal.Type", "Test"},
@@ -72,8 +71,7 @@ call_test(_Config) ->
     ?assertEqual(undefined, ebus_message:interface(M2)),
 
     lists:foreach(fun({Dest, Path, IFace, Member}) ->
-                          ?assertMatch({'EXIT', {badarg, _}},
-                                       (catch ebus_message:new_call(Dest, Path, IFace, Member)))
+                          ?assertError(badarg, ebus_message:new_call(Dest, Path, IFace, Member))
                   end,
                   [
                    {"baddest", "/test/call/Object", "test.call.Type", "Test"},
@@ -108,8 +106,7 @@ arg_int_test(Config) ->
 
     %% bounds checking
     lists:foreach(fun({Types, Args}) ->
-                          ?assertMatch({'EXIT', {badarg, _}},
-                                       (catch ebus_message:append_args(M, Types, Args)))
+                          ?assertError(badarg, ebus_message:append_args(M, Types, Args))
                   end,
                   [
                    {[byte], [500]},
@@ -134,7 +131,7 @@ arg_bool_test(Config) ->
     ?assertEqual(ok, ebus_message:append_args(M, [bool, bool], Arg)),
     ?assertEqual({ok, Arg}, ebus_message:args(M)),
 
-    ?assertMatch({'EXIT', {badarg, _}}, (catch ebus_message:append_args(M, [bool], [-1]))),
+    ?assertError(badarg, ebus_message:append_args(M, [bool], [-1])),
 
     ok.
 
@@ -145,7 +142,7 @@ arg_double_test(Config) ->
     ?assertEqual(ok, ebus_message:append_args(M, [double, double], Arg)),
     ?assertEqual({ok, Arg}, ebus_message:args(M)),
 
-    ?assertMatch({'EXIT', {badarg, _}}, (catch ebus_message:append_args(M, [double], ["break"]))),
+    ?assertError(badarg, ebus_message:append_args(M, [double], ["break"])),
 
     ok.
 
@@ -157,7 +154,7 @@ arg_string_test(Config) ->
     ok = ebus_message:append_args(M, [string], Arg),
     {ok, Arg} = ebus_message:args(M),
 
-    ?assertMatch({'EXIT', {badarg, _}}, (catch ebus_message:append_args(M, [string], [-1]))),
+    ?assertError(badarg, ebus_message:append_args(M, [string], [-1])),
 
     ok.
 
@@ -177,10 +174,8 @@ arg_map_test(Config) ->
     ?assertEqual(ok, ebus_message:append_args(M, [{dict, string, {struct, [int16, {array, byte}]}}], Arg)),
     ?assertEqual({ok, Arg}, ebus_message:args(M)),
 
-    ?assertMatch({'EXIT', {badarg, _}},
-                 (catch ebus_message:append_args(M, [{dict, string, string}], [#{42 => "hello"}]))),
-    ?assertMatch({'EXIT', {badarg, _}},
-                 (catch ebus_message:append_args(M, [{dict, string, string}], [#{"hello" => <<"hello">>}]))),
+    ?assertError(badarg, ebus_message:append_args(M, [{dict, string, string}], [#{42 => "hello"}])),
+    ?assertError(badarg, ebus_message:append_args(M, [{dict, string, string}], [#{"hello" => <<"hello">>}])),
 
     ok.
 
