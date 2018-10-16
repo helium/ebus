@@ -14,7 +14,7 @@
          message_append_args/3, message_get_args/1, message_get_type/1,
          message_get_serial/1, message_set_serial/2, message_get_reply_serial/1,
          message_get_destination/1, message_get_path/1, message_get_interface/1, message_get_member/1,
-         message_get_error/1]).
+         message_get_error/1, message_infer_signature/1]).
 -export([watch_handle/2]).
 -export([timeout_handle/1]).
 
@@ -78,6 +78,10 @@ message_get_member(_) ->
 
 -spec message_get_error(ebus:message()) -> ok | {error, term()}.
 message_get_error(_) ->
+    not_loaded(?LINE).
+
+-spec message_infer_signature(any()) -> string().
+message_infer_signature(_) ->
     not_loaded(?LINE).
 
 %%

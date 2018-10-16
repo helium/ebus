@@ -58,6 +58,7 @@ static ErlNifFunc nif_funcs[] = {
     {"message_get_interface", 1, ebus_message_get_interface, 0},
     {"message_get_member", 1, ebus_message_get_member, 0},
     {"message_get_error", 1, ebus_message_get_error, 0},
+    {"message_infer_signature", 1, ebus_message_infer_signature, 0},
 
     {"watch_handle", 2, ebus_watch_handle, ERL_NIF_DIRTY_JOB_IO_BOUND},
 

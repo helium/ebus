@@ -57,5 +57,8 @@ ebus_message_get_member(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[]);
 ERL_NIF_TERM
 ebus_message_get_error(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[]);
 
+ERL_NIF_TERM
+ebus_message_infer_signature(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[]);
+
 
 #endif /* EBUS_MESSAGE_H */

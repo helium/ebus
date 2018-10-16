@@ -430,6 +430,25 @@ ebus_message_get_error(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
     return handle_dbus_error(env, &error);
 }
 
+ERL_NIF_TERM
+ebus_message_infer_signature(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
+{
+    if (argc != 1)
+    {
+        return enif_make_badarg(env);
+    }
+
+   char sig[DBUS_MAXIMUM_SIGNATURE_LENGTH];
+    sig[0]          = DBUS_TYPE_INVALID;
+    size_t sig_size = DBUS_MAXIMUM_SIGNATURE_LENGTH;
+
+    if (!ebus_message_infer_type(env, argv[0], sig, &sig_size)) {
+        return enif_make_badarg(env);
+    }
+
+    return enif_make_string(env, sig, ERL_NIF_LATIN1);
+}
+
 void
 ebus_message_load(ErlNifEnv * env)
 {

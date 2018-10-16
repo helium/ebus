@@ -39,6 +39,8 @@ init_per_testcase(signal_test, Config) ->
     Config;
 init_per_testcase(call_test, Config) ->
     Config;
+init_per_testcase(infer_signature_test, Config) ->
+    Config;
 init_per_testcase(_, Config) ->
     init_message(Config).
 
@@ -46,7 +48,7 @@ init_per_testcase(_, Config) ->
 
 signal_test(_Config) ->
     {ok, M} = ebus_message:new_signal("/test/signal/Object", "test.signal.Type", "Test"),
-    0 = ebus_message:serial(M),
+    ?assertEqual(0, ebus_message:serial(M)),
 
     lists:foreach(fun({Path, IFace, Member}) ->
                           ?assertError(badarg, ebus_message:new_signal(Path, IFace, Member))

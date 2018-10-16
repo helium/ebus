@@ -31,9 +31,14 @@ call(Pid, Member, Types, Args) ->
     %% Using the dbus recommended `-1` means a 25 second (!) timeout
     call(Pid, Member, Types, Args, 5000).
 
--spec call(pid(), string(), ebus:signature(), [any()], integer()) -> ok | {error, term()}.
+-spec call(pid(), Member::string(), Sig::ebus:signature(), Args::[any()], Timeout::integer()) ->
+                  {ok, Response::term()} | {error, term()}.
 call(Pid, Member, Types, Args, Timeout) ->
-    gen_server:call(Pid, {call, Member, Types, Args, Timeout}, infinity).
+    {IFace, Name} = case string:split(Member, ".", trailing) of
+                        [Member] -> {undefined, Member};
+                        [Prefix, Suffix] -> {Prefix, Suffix}
+                    end,
+    gen_server:call(Pid, {call, IFace, Name, Types, Args, Timeout}, infinity).
 
 
 %% gen_server
@@ -55,8 +60,12 @@ init([Bus, Dest, Path, IFace]) ->
     {ok, #state{bus=Bus, dest=Dest, path=Path, interface=IFace}}.
 
 
-handle_call({call, Member, Types, Args, Timeout}, From, State=#state{}) ->
-    case ebus_message:new_call(State#state.dest, State#state.path, State#state.interface, Member) of
+handle_call({call, IFace, Member, Types, Args, Timeout}, From, State=#state{}) ->
+    SelectedIFace = case IFace of
+                        undefined -> State#state.interface;
+                        _ -> IFace
+                    end,
+    case ebus_message:new_call(State#state.dest, State#state.path, SelectedIFace, Member) of
         {ok, Msg} ->
             case ebus_message:append_args(Msg, Types, Args) of
                 ok ->

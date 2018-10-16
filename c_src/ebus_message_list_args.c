@@ -134,6 +134,15 @@ iter_get_map(ErlNifEnv * env, DBusMessageIter * iter, ERL_NIF_TERM * dest)
 }
 
 static int
+iter_get_variant(ErlNifEnv * env, DBusMessageIter * iter, ERL_NIF_TERM * dest)
+{
+    DBusMessageIter sub_iter;
+
+    dbus_message_iter_recurse(iter, &sub_iter);
+    return ebus_message_get_arg(env, &sub_iter, dest);
+}
+
+static int
 ebus_message_get_arg(ErlNifEnv * env, DBusMessageIter * iter, ERL_NIF_TERM * dest)
 {
     DBusBasicValue v;
@@ -199,6 +208,8 @@ ebus_message_get_arg(ErlNifEnv * env, DBusMessageIter * iter, ERL_NIF_TERM * des
         }
     case DBUS_TYPE_STRUCT:
         return iter_get_struct(env, iter, dest);
+    case DBUS_TYPE_VARIANT:
+        return iter_get_variant(env, iter, dest);
     }
 
     return FALSE;
