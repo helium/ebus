@@ -13,6 +13,7 @@ C_SRC_DIR = $(CURDIR)
 C_SRC_OUTPUT ?= $(CURDIR)/../priv/$(PROJECT).so
 
 # System type and C compiler/flags.
+# STAGING_DIR is defined by Buildroot for correct cross-compilation
 
 UNAME_SYS := $(shell uname -s)
 ifeq ($(UNAME_SYS), Darwin)
@@ -28,7 +29,7 @@ else ifeq ($(UNAME_SYS), FreeBSD)
 else ifeq ($(UNAME_SYS), Linux)
 	CC ?= gcc
 	CFLAGS ?= -g3 -ggdb -std=c99 -finline-functions -Wall -Wmissing-prototypes
-	CFLAGS += -I /usr/include/dbus-1.0 -I /usr/lib/dbus-1.0/include -I /usr/lib/arm-linux-gnueabihf/dbus-1.0/include
+	CFLAGS += -I $(STAGING_DIR)/usr/include/dbus-1.0 -I $(STAGING_DIR)/usr/lib/dbus-1.0/include -I $(STAGING_DIR)/usr/lib/arm-linux-gnueabihf/dbus-1.0/include
 	CXXFLAGS ?= -O3 -finline-functions -Wall
 endif
 
