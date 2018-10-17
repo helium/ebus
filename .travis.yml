@@ -1,0 +1,19 @@
+language: erlang
+
+otp_release:
+  - 21.1
+
+addons:
+  apt:
+    packages:
+    - dbus
+    - libdbus-1-3
+    - libdbus-1-dev
+
+cache:
+  directories:
+  - $HOME/.cache/rebar3
+
+script:
+  dbus-launch ./rebar3 as test do eunit,ct && ./rebar3 dialyzer
+  ./rebar3 coveralls send || true
