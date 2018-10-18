@@ -10,6 +10,8 @@ typedef struct
 static error_entry * error_map;
 static ERL_NIF_TERM  ATOM_UNKNOWN;
 static ERL_NIF_TERM  ATOM_TIMEOUT;
+static ERL_NIF_TERM  ATOM_NO_ACCESS;
+static ERL_NIF_TERM  ATOM_NAMED;
 
 ERL_NIF_TERM
 mk_dbus_error(ErlNifEnv * env, DBusError * error)
@@ -25,6 +27,12 @@ mk_dbus_error(ErlNifEnv * env, DBusError * error)
         }
         entry += 1;
     }
+
+    if (term == ATOM_UNDEFINED)
+    {
+        term = enif_make_string(env, error->name, ERL_NIF_LATIN1);
+    }
+
     return enif_make_tuple2(env, ATOM_ERROR, term);
 }
 
@@ -46,6 +54,8 @@ ebus_error_load(ErlNifEnv * env)
 {
     ATOM(ATOM_UNKNOWN, "unknown");
     ATOM(ATOM_TIMEOUT, "timeout");
+    ATOM(ATOM_NO_ACCESS, "no_access");
+    ATOM(ATOM_NAMED, "named");
 
     error_entry errors[] = {{DBUS_ERROR_NO_MEMORY, ATOM_ENOMEM},
                             {DBUS_ERROR_ADDRESS_IN_USE, ATOM_ALREADY},
@@ -53,6 +63,7 @@ ebus_error_load(ErlNifEnv * env)
                             {DBUS_ERROR_TIMEOUT, ATOM_TIMEOUT},
                             {DBUS_ERROR_TIMED_OUT, ATOM_TIMEOUT},
                             {DBUS_ERROR_NO_REPLY, ATOM_TIMEOUT},
+                            {DBUS_ERROR_ACCESS_DENIED, ATOM_NO_ACCESS},
 
                             {DBUS_ERROR_UNKNOWN_INTERFACE, ATOM_UNKNOWN},
                             {DBUS_ERROR_UNKNOWN_METHOD, ATOM_UNKNOWN},

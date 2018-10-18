@@ -224,7 +224,7 @@ ebus_message_list_args(ErlNifEnv * env, DBusMessage * message)
 
     if (!dbus_message_iter_init(message, &iter))
     {
-        return list;
+        return enif_make_tuple2(env, ATOM_OK, list);
     }
 
     int current_type;
