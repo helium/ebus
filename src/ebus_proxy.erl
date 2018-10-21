@@ -4,17 +4,16 @@
 -behavior(gen_server).
 
 %% API
--export([call/2, call/4, call/5]).
+-export([call/2, call/3, call/5, call/6,
+        send/2, send/3, send/5]).
 
 %% gen_server
--export([start/4, start/5, start_link/4, start_link/5, init/1,
+-export([start/3, start_link/3, init/1,
         handle_call/3, handle_cast/2, handle_info/2]).
 
 -record(state, {
                 bus :: pid(),
                 dest :: string(),
-                path :: string(),
-                interface=undefined :: string() | undefined,
                 calls=#{} :: #{Serial::non_neg_integer() => From::term()}
                }).
 

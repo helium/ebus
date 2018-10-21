@@ -3,7 +3,9 @@
 -include_lib("common_test/include/ct.hrl").
 -include_lib("eunit/include/eunit.hrl").
 
--export([all/0, init_per_testcase/2, end_per_testcase/2]).
+-export([all/0,
+         init_per_suite/1, end_per_suite/1,
+         init_per_testcase/2, end_per_testcase/2]).
 -export([bad_bus_test/1,
          name_test/1,
          unique_name_test/1,
@@ -18,10 +20,17 @@ all() ->
       send_test
     ].
 
+init_per_suite(Config) ->
+    application:ensure_all_started(ebus),
+    Config.
+
+end_per_suite(Config) ->
+    Config.
+
 init_per_testcase(bad_bus_test, Config) ->
     Config;
 init_per_testcase(_, Config) ->
-    {ok, B} = ebus:start_link(),
+    {ok, B} = ebus:starter(),
     unlink(B),
     [{bus, B} | Config].
 

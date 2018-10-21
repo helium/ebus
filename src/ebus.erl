@@ -8,8 +8,8 @@
          terminate/2]).
 
 %% API
--export([system/0, session/0, unique_name/1,
-         request_name/2, request_name/3, release_name/2,
+-export([system/0, session/0, starter/0,
+         unique_name/1, request_name/2, request_name/3, release_name/2,
          add_match/2,
          add_filter/3, remove_filter/2,
          send/2, call/4,
@@ -117,6 +117,9 @@ system() ->
 
 session() ->
     ebus_sup:session().
+
+starter() ->
+    ebus_sup:starter().
 
 -spec stop(pid(), Reason::term()) -> ok.
 stop(Pid, Reason) ->
