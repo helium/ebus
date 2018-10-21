@@ -48,7 +48,7 @@ ebus_watch_handle(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
         return ATOM_FALSE;
     }
 
-    int ret = dbus_watch_handle(res->watch, flags) ? ATOM_TRUE : ATOM_FALSE;
+    int ret = dbus_watch_handle(res->watch, flags);
     return ret ? ATOM_TRUE : ATOM_FALSE;
 }
 
