@@ -3,13 +3,12 @@
 -behavior(gen_server).
 
 %% gen_server
--export([start/0, start/1, stop/2,
-         start_link/0, start_link/1, init/1,
+-export([start_link/1, init/1, stop/2,
          handle_call/3, handle_cast/2, handle_info/2,
          terminate/2]).
 
 %% API
--export([unique_name/1,
+-export([system/0, session/0, unique_name/1,
          request_name/2, request_name/3, release_name/2,
          add_match/2,
          add_filter/3, remove_filter/2,
@@ -113,6 +112,12 @@
 %% API
 %%
 
+system() ->
+    ebus_sup:system().
+
+session() ->
+    ebus_sup:session().
+
 -spec stop(pid(), Reason::term()) -> ok.
 stop(Pid, Reason) ->
     gen_server:cast(Pid, {stop, Reason}).
@@ -165,17 +170,14 @@ unregister_object_path(Pid, Path) ->
 %% gen_server
 %%
 
-start() ->
-    start(starter).
-
-start(Type) ->
-    gen_server:start(?MODULE, [bus_type(Type)], []).
-
-start_link() ->
-    start_link(starter).
-
 start_link(Type) ->
-    gen_server:start_link(?MODULE, [bus_type(Type)], []).
+    case whereis(Type) of
+        undefined ->
+            gen_server:start_link({local, Type}, ?MODULE, [bus_type(Type)], []);
+         Pid ->
+            link(Pid),
+            {ok, Pid}
+    end.
 
 init([IntType]) ->
     erlang:process_flag(trap_exit, true),

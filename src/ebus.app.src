@@ -6,6 +6,7 @@
                  stdlib,
                  lager]},
   {env,[]},
+  {mod, { ebus_app, []}},
 
   %% hex.pm packaging:
   {licenses, ["Apache 2.0"]},
