@@ -66,18 +66,14 @@ init([Bus, Dest]) ->
 
 
 
-handle_call({call, IFace, Member, Types, Args, Timeout}, From, State=#state{}) ->
-    SelectedIFace = case IFace of
-                        undefined -> State#state.interface;
-                        _ -> IFace
-                    end,
-    case ebus_message:new_call(State#state.dest, State#state.path, SelectedIFace, Member) of
+handle_call({call, Path, Member, Types, Args, Timeout}, From, State=#state{}) ->
+    case ebus_message:new_call(State#state.dest, Path, Member) of
         {ok, Msg} ->
             case ebus_message:append_args(Msg, Types, Args) of
                 ok ->
                     case ebus:call(State#state.bus, Msg, self(), Timeout) of
-                        ok ->
-                            NewCalls = maps:put(ebus_message:serial(Msg), From, State#state.calls),
+                        {ok, Serial} ->
+                            NewCalls = maps:put(Serial, From, State#state.calls),
                             {noreply, State#state{calls=NewCalls}};
                         {error, Reason} ->
                             {reply, {error, Reason}, State}

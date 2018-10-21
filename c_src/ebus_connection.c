@@ -177,6 +177,24 @@ ebus_connection_unique_name(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[]
 }
 
 ERL_NIF_TERM
+ebus_connection_bus_id(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
+{
+    if (argc != 1)
+    {
+        return enif_make_badarg(env);
+    }
+
+    DBusConnection * connection;
+    if (!get_dbus_connection(env, argv[0], &connection))
+    {
+        return enif_make_badarg(env);
+    }
+
+    const char * name = dbus_bus_get_id(connection, NULL);
+    return enif_make_string(env, name, ERL_NIF_LATIN1);
+}
+
+ERL_NIF_TERM
 ebus_connection_request_name(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
 {
     if (argc != 3)
@@ -290,8 +308,8 @@ ebus_connection_call(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
         return enif_make_badarg(env);
     }
 
-    DBusConnection * connection;
-    if (!get_dbus_connection(env, argv[0], &connection))
+    dbus_connection * connection;
+    if (!get_dbus_connection_resource(env, argv[0], &connection))
     {
         return enif_make_badarg(env);
     }
@@ -315,12 +333,14 @@ ebus_connection_call(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
     }
 
     DBusPendingCall * pending;
-    if (!dbus_connection_send_with_reply(connection, message, &pending, timeout))
+    if (!dbus_connection_send_with_reply(connection->connection, message, &pending, timeout))
     {
         return enif_make_tuple2(env, ATOM_ERROR, ATOM_ENOMEM);
     }
 
-    dbus_object * obj = mk_dbus_object_resource(env, &pid);
+    unsigned int serial = dbus_message_get_serial(message);
+
+    dbus_object * obj = mk_dbus_object_resource(env, &pid, connection);
     if (!dbus_pending_call_set_notify(pending, cb_object_handle_reply, obj, NULL))
     {
         enif_release_resource(obj);
@@ -328,8 +348,8 @@ ebus_connection_call(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
         return enif_make_tuple2(env, ATOM_ERROR, ATOM_ENOMEM);
     }
 
-    dbus_connection_read_write(connection, 1);
-    return ATOM_OK;
+    dbus_connection_read_write(connection->connection, 1);
+    return enif_make_tuple2(env, ATOM_OK, enif_make_uint(env, serial));
 }
 
 
@@ -398,7 +418,7 @@ ebus_connection_register_object_path(ErlNifEnv * env, int argc, const ERL_NIF_TE
     DBusObjectPathVTable vtable = {.unregister_function = cb_object_unregister,
                                    .message_function    = cb_object_handle_message};
 
-    dbus_object * obj = mk_dbus_object_resource(env, &pid);
+    dbus_object * obj = mk_dbus_object_resource(env, &pid, NULL);
     if (!dbus_connection_try_register_object_path(state->connection, path, &vtable, obj, &error))
     {
         enif_release_resource(obj);

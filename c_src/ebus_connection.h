@@ -32,6 +32,9 @@ ERL_NIF_TERM
 ebus_connection_unique_name(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[]);
 
 ERL_NIF_TERM
+ebus_connection_bus_id(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[]);
+
+ERL_NIF_TERM
 ebus_connection_request_name(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[]);
 
 ERL_NIF_TERM

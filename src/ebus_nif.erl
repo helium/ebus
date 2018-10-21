@@ -5,7 +5,8 @@
 
 -on_load(init/0).
 
--export([connection_get/2, connection_close/1, connection_unique_name/1,
+-export([connection_get/2, connection_close/1,
+         connection_unique_name/1, connection_bus_id/1,
          connection_request_name/3, connection_release_name/2,
          connection_add_match/2, connection_send/2, connection_call/4, connection_dispatch/1,
          connection_set_filters/2,
@@ -98,6 +99,10 @@ connection_close(_) ->
 
 -spec connection_unique_name(ebus:connection()) -> string().
 connection_unique_name(_) ->
+    not_loaded(?LINE).
+
+-spec connection_bus_id(ebus:connection()) -> string().
+connection_bus_id(_) ->
     not_loaded(?LINE).
 
 -spec connection_add_match(ebus:connection(), Rule::string()) -> ok | {error, term()}.

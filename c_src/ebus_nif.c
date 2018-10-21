@@ -34,6 +34,7 @@ static ErlNifFunc nif_funcs[] = {
     {"connection_get", 2, ebus_connection_get, ERL_NIF_DIRTY_JOB_IO_BOUND},
     {"connection_close", 1, ebus_connection_close, ERL_NIF_DIRTY_JOB_IO_BOUND},
     {"connection_unique_name", 1, ebus_connection_unique_name, 0},
+    {"connection_bus_id", 1, ebus_connection_bus_id, ERL_NIF_DIRTY_JOB_IO_BOUND},
     {"connection_request_name", 3, ebus_connection_request_name, 0},
     {"connection_release_name", 2, ebus_connection_release_name, 0},
     {"connection_add_match", 2, ebus_connection_add_match, ERL_NIF_DIRTY_JOB_IO_BOUND},

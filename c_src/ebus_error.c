@@ -33,6 +33,7 @@ mk_dbus_error(ErlNifEnv * env, DBusError * error)
         term = enif_make_string(env, error->name, ERL_NIF_LATIN1);
     }
 
+    enif_fprintf(stdout, "ERROR %s\n", error->name);
     return enif_make_tuple2(env, ATOM_ERROR, term);
 }
 
