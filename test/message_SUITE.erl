@@ -47,7 +47,7 @@ init_per_testcase(_, Config) ->
 
 
 signal_test(_Config) ->
-    {ok, M} = ebus_message:new_signal("/test/signal/Object", "test.signal.Type", "Test"),
+    {ok, M} = ebus_message:new_signal("/test/signal/Object", "test.signal.Type.Test"),
     ?assertEqual(0, ebus_message:serial(M)),
 
     lists:foreach(fun({Path, IFace, Member}) ->

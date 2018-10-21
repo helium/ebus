@@ -58,7 +58,7 @@ match_test(Config) ->
     B = ?config(bus, Config),
 
     ?assertEqual(ok, ebus:add_match(B, "type=signal, interface='test.signal.Type'")),
-    ?assertMatch({error, _}, ebus:add_match(B, "type=notthere")),
+    ?assertEqual({error, invalid}, ebus:add_match(B, "type=notthere")),
 
     ok.
 

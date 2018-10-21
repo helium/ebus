@@ -1,17 +1,23 @@
 -module(ebus_message).
 
 -export([new_call/3, new_call/4, new_reply/1, new_reply/3,
-         new_signal/3, append_args/3, args/1, to_map/1,
+         new_signal/2, new_signal/3, append_args/3, args/1, to_map/1,
          type/1, serial/1, serial/2, reply_serial/1,
          destination/1, interface/1, path/1, member/1, error/1, infer_signature/1]).
+
+-spec new_signal(Path::string(), Member::string()) -> {ok, ebus:message()} | {error, term()}.
+new_signal(Path, Member) ->
+    {IFace, Name} = interface_member(Member),
+    new_signal(Path, IFace, Name).
 
 -spec new_signal(Path::string(), IFace::string(), Name::string()) -> {ok, ebus:message()} | {error, term()}.
 new_signal(Path, IFace, Name) ->
     ebus_nif:message_new_signal(Path, IFace, Name).
 
--spec new_call(Dest::string(), Path::string(), Name::string()) -> {ok, ebus:message()} | {error, term()}.
-new_call(Dest, Path, Name) ->
-    new_call(Dest, Path, undefined, Name).
+-spec new_call(Dest::string(), Path::string(), Member::string()) -> {ok, ebus:message()} | {error, term()}.
+new_call(Dest, Path, Member) ->
+    {IFace, Name} = interface_member(Member),
+    new_call(Dest, Path, IFace, Name).
 
 -spec new_call(Dest::string() | undefined, Path::string(), IFace::string() | undefined, Name::string())
               -> {ok, ebus:message()} | {error, term()}.
@@ -96,6 +102,13 @@ infer_signature(Term) ->
 %%
 %% Private
 %%
+
+-spec interface_member(string()) -> {string() | undefined, string()}.
+interface_member(Member) ->
+    case string:split(Member, ".", trailing) of
+        [Member] -> {undefined, Member};
+        [Prefix, Suffix] -> {Prefix, Suffix}
+    end.
 
 -spec encode_signature(ebus:signature()) -> string().
 encode_signature(Signature) ->
