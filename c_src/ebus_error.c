@@ -11,7 +11,7 @@ static error_entry * error_map;
 static ERL_NIF_TERM  ATOM_UNKNOWN;
 static ERL_NIF_TERM  ATOM_TIMEOUT;
 static ERL_NIF_TERM  ATOM_NO_ACCESS;
-static ERL_NIF_TERM  ATOM_NAMED;
+static ERL_NIF_TERM  ATOM_INVALID;
 
 ERL_NIF_TERM
 mk_dbus_error(ErlNifEnv * env, DBusError * error)
@@ -55,7 +55,7 @@ ebus_error_load(ErlNifEnv * env)
     ATOM(ATOM_UNKNOWN, "unknown");
     ATOM(ATOM_TIMEOUT, "timeout");
     ATOM(ATOM_NO_ACCESS, "no_access");
-    ATOM(ATOM_NAMED, "named");
+    ATOM(ATOM_INVALID, "invalid");
 
     error_entry errors[] = {{DBUS_ERROR_NO_MEMORY, ATOM_ENOMEM},
                             {DBUS_ERROR_ADDRESS_IN_USE, ATOM_ALREADY},
@@ -64,6 +64,7 @@ ebus_error_load(ErlNifEnv * env)
                             {DBUS_ERROR_TIMED_OUT, ATOM_TIMEOUT},
                             {DBUS_ERROR_NO_REPLY, ATOM_TIMEOUT},
                             {DBUS_ERROR_ACCESS_DENIED, ATOM_NO_ACCESS},
+                            {DBUS_ERROR_MATCH_RULE_INVALID, ATOM_INVALID},
 
                             {DBUS_ERROR_UNKNOWN_INTERFACE, ATOM_UNKNOWN},
                             {DBUS_ERROR_UNKNOWN_METHOD, ATOM_UNKNOWN},
