@@ -22,42 +22,49 @@
 %%
 
 
--spec call(pid(), string()) -> ok | {error, term()}.
+-spec call(pid(), string()) -> {ok, Response::term()} | {error, term()}.
 call(Pid, Member) ->
-    call(Pid, Member, [], []).
+    call(Pid, "/", Member).
 
--spec call(pid(), string(), ebus:signature(), [any()]) -> ok | {error, term()}.
-call(Pid, Member, Types, Args) ->
+call(Pid, Path, Member) ->
+    call(Pid, Path, Member, [], []).
+
+-spec call(pid(), string(), string(), ebus:signature(), [any()]) -> {ok, Response::term()} | {error, term()}.
+call(Pid, Path, Member, Types, Args) ->
     %% Using the dbus recommended `-1` means a 25 second (!) timeout
-    call(Pid, Member, Types, Args, 5000).
+    call(Pid, Path, Member, Types, Args, 5000).
 
--spec call(pid(), Member::string(), Sig::ebus:signature(), Args::[any()], Timeout::integer()) ->
-                  {ok, Response::term()} | {error, term()}.
-call(Pid, Member, Types, Args, Timeout) ->
-    {IFace, Name} = case string:split(Member, ".", trailing) of
-                        [Member] -> {undefined, Member};
-                        [Prefix, Suffix] -> {Prefix, Suffix}
-                    end,
-    gen_server:call(Pid, {call, IFace, Name, Types, Args, Timeout}, infinity).
+-spec call(pid(), Path::string(), Member::string(),
+           Sig::ebus:signature(), Args::[any()],
+           Timeout::integer()) -> {ok, Response::term()} | {error, term()}.
+call(Pid, Path, Member, Types, Args, Timeout) ->
+    gen_server:call(Pid, {call, Path, Member, Types, Args, Timeout}, infinity).
+
+-spec send(pid(), string()) -> ok | {error, term()}.
+send(Pid, Member) ->
+    send(Pid, "/", Member).
+
+send(Pid, Path, Member) ->
+    send(Pid, Path, Member, [], []).
+
+-spec send(pid(), Path::string(), Member::string(),
+           Sig::ebus:signature(), Args::[any()]) -> ok | {error, term()}.
+send(Pid, Path, Member, Types, Args) ->
+    gen_server:call(Pid, {send, Path, Member, Types, Args}, infinity).
 
 
 %% gen_server
 %%
 
-start(Bus, Dest, Path, Options) ->
-    start(Bus, Dest, Path, undefined, Options).
+start(Bus, Dest, Options) ->
+    gen_server:start(?MODULE, [Bus, Dest], Options).
 
-start(Bus, Dest, Path, IFace, Options) ->
-    gen_server:start(?MODULE, [Bus, Dest, Path, IFace], Options).
+start_link(Bus, Dest, Options) ->
+    gen_server:start_link(?MODULE, [Bus, Dest], Options).
 
-start_link(Bus, Dest, Path, Options) ->
-    start_link(Bus, Dest, Path, undefined, Options).
+init([Bus, Dest]) ->
+    {ok, #state{bus=Bus, dest=Dest}}.
 
-start_link(Bus, Dest, Path, IFace, Options) ->
-    gen_server:start_link(?MODULE, [Bus, Dest, Path, IFace], Options).
-
-init([Bus, Dest, Path, IFace]) ->
-    {ok, #state{bus=Bus, dest=Dest, path=Path, interface=IFace}}.
 
 
 handle_call({call, IFace, Member, Types, Args, Timeout}, From, State=#state{}) ->

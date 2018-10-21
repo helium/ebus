@@ -52,11 +52,11 @@ call_test(Config) ->
     ?assert(meck:called(call_test, init, [[init_arg]])),
 
     %% Now call the Echo service
-    {ok, Proxy} = ebus_proxy:start(B, Dest, Path, []),
+    {ok, Proxy} = ebus_proxy:start(B, Dest, []),
     Args = ["Hello World"],
-    ?assertEqual({ok, Args}, ebus_proxy:call(Proxy, "Echo", [string], Args)),
-    ?assertEqual({ok, [true]}, ebus_proxy:call(Proxy, "True")),
-    ?assertEqual({error, timeout}, ebus_proxy:call(Proxy, "Timeout", [], [], 1000)),
+    ?assertEqual({ok, Args}, ebus_proxy:call(Proxy, Path, "Echo", [string], Args)),
+    ?assertEqual({ok, [true]}, ebus_proxy:call(Proxy, Path, "True")),
+    ?assertEqual({error, timeout}, ebus_proxy:call(Proxy, Path, "Timeout", [], [], 1000)),
 
     meck:validate(call_test),
     meck:unload(call_test),

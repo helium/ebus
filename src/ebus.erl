@@ -10,7 +10,7 @@
 
 %% API
 -export([unique_name/1,
-         request_name/3, release_name/2,
+         request_name/2, request_name/3, release_name/2,
          add_match/2,
          add_filter/3, remove_filter/2,
          send/2, call/4,
@@ -121,6 +121,10 @@ stop(Pid, Reason) ->
 unique_name(Pid) ->
     gen_server:call(Pid, unique_name).
 
+-spec request_name(pid(), Name::string()) -> request_name_reply().
+request_name(Pid, Name) ->
+    request_name(Pid, Name,
+                 [{replace_existing, true}, {do_not_queue, true}]).
 
 -spec request_name(pid(), Name::string(), Opts::request_name_opts()) -> request_name_reply().
 request_name(Pid, Name, Opts) when is_list(Opts) ->
@@ -213,9 +217,9 @@ handle_call({send, Msg}, _From, State=#state{connection=Conn}) ->
 handle_call({call, Msg, Handler, Timeout}, _From, State=#state{connection=Conn}) ->
     {reply, ebus_nif:connection_call(Conn, Msg, Handler, Timeout), State};
 handle_call({add_filter, Target, Filter}, _From,
-            State=#state{connection=Conn, filter_next_id=FilterId, filters=Filters, filter_targets=Targets}) ->
+            State=#state{filter_next_id=FilterId, filters=Filters, filter_targets=Targets}) ->
     NewFilters = [{FilterId, Filter} | Filters],
-    case ebus_nif:connection_set_filters(Conn, NewFilters) of
+    case ebus_nif:connection_set_filters(State#state.connection, NewFilters) of
         ok ->
             NewTargets = maps:put(FilterId, Target, Targets),
             {reply, {ok, FilterId}, State#state{filter_targets=NewTargets, filters=NewFilters,
