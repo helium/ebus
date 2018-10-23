@@ -64,21 +64,6 @@ cb_object_handle_reply(DBusPendingCall * pending, void * data)
 
     enif_free_env(msg_env);
 
-    // HACK_ATTACK: With both pending calls and standard messages, if
-    // there is a timeout in a connection_call, the dbus library
-    // messes up it's serial and serial_reply numbers. Just asking the
-    // bus for anything else seems to clear it up. So here's a
-    // terrible hack that checks for a no-reply and then calls
-    // dbus_bus_get_id to get the library to line up again.
-    DBusError error;
-    dbus_error_init(&error);
-    if (dbus_set_error_from_message(&error, reply)
-        && dbus_error_has_name(&error, DBUS_ERROR_NO_REPLY))
-    {
-        dbus_connection * connection = (dbus_connection *)object->user;
-        dbus_bus_get_id(connection->connection, NULL);
-    }
-
     // let go of the pending call
     dbus_pending_call_unref(pending);
 }

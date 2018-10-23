@@ -37,7 +37,7 @@ call_test(Config) ->
     ?assertEqual(ok, ebus:request_name(B, Dest, [{replace_existing, true}])),
 
     Path = "/com/helium/test/Object",
-    ebus:add_match(B, lists:flatten(io_lib:format("path=~s", [Path]))),
+    ?assertEqual(ok, ebus:add_match(B, #{path => Path})),
 
     meck:new(call_test, [non_strict]),
     meck:expect(call_test, init,

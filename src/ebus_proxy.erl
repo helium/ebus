@@ -5,7 +5,8 @@
 
 %% API
 -export([call/2, call/3, call/5, call/6,
-        send/2, send/3, send/5]).
+        send/2, send/3, send/5,
+        add_signal_handler/3, add_signal_handler/4, remove_signal_handler/2]).
 
 %% gen_server
 -export([start/3, start_link/3, init/1,
@@ -14,8 +15,11 @@
 -record(state, {
                 bus :: pid(),
                 dest :: string(),
-                calls=#{} :: #{Serial::non_neg_integer() => From::term()}
+                calls=#{} :: #{Serial::non_neg_integer() => From::term()},
+                active_filters=#{} :: #{ebus:filter_id() => Filter::ebus:rule()}
                }).
+
+-define(PROXY_SEND_TIMEOUT, 5000).
 
 %% API
 %%
@@ -51,6 +55,19 @@ send(Pid, Path, Member) ->
 send(Pid, Path, Member, Types, Args) ->
     gen_server:call(Pid, {send, Path, Member, Types, Args}, infinity).
 
+-spec add_signal_handler(pid(), Member::string(), Handler::pid())
+                        -> {ok, ebus:filter_id()} | {error, term()}.
+add_signal_handler(Pid, Member, Handler) ->
+    add_signal_handler(Pid, "/", Member, Handler).
+
+-spec add_signal_handler(pid(), Path::string(), Member::string(), Handler::pid())
+                        -> {ok, ebus:filter_id()} | {error, term()}.
+add_signal_handler(Pid, Path, Member, Handler) ->
+    gen_server:call(Pid, {add_signal_handler, Path, Member, Handler}).
+
+-spec remove_signal_handler(pid(), ebus:filter_id()) -> ok.
+remove_signal_handler(Pid, Ref) ->
+    gen_server:cast(Pid, {remove_signal_handler, Ref}).
 
 %% gen_server
 %%
@@ -84,12 +101,58 @@ handle_call({call, Path, Member, Types, Args, Timeout}, From, State=#state{}) ->
         {error, Reason} ->
             {reply, {error, Reason}, State}
     end;
+handle_call({send, Path, Member, Types, Args}, _From, State=#state{}) ->
+    case ebus_message:new_call(State#state.dest, Path, Member) of
+        {ok, Msg} ->
+            case ebus_message:append_args(Msg, Types, Args) of
+                ok ->
+                    case ebus:call(State#state.bus, Msg, self(), ?PROXY_SEND_TIMEOUT) of
+                        {ok, _} -> {reply, ok, State};
+                        {error, Reason} ->
+                            {reply, {error, Reason}, State}
+                    end;
+                {error, Reason} ->
+                    {reply, {error, Reason}, State}
+            end;
+        {error, Reason} ->
+            {reply, {error, Reason}, State}
+    end;
 
+handle_call({add_signal_handler, Path, Member, Handler}, _From, State=#state{}) ->
+    {IFace, Name} = ebus_message:interface_member(Member),
+    case IFace of
+        undefined -> {reply, {error, missing_interface}, State};
+        IFace ->
+            Filter = #{ path => Path,
+                        type => signal,
+                        member => Name,
+                        interface => IFace
+                      },
+            io:format("ADDING MATCH ~p", [ebus:rule_to_string(Filter)]),
+            ok = ebus:add_match(State#state.bus, Filter),
+            case ebus:add_filter(State#state.bus, Handler, Filter) of
+                {ok, FilterID} ->
+                    NewFilters = maps:put(FilterID, Filter, State#state.active_filters),
+                    {reply, {ok, FilterID}, State#state{active_filters=NewFilters}};
+                {error, Error} ->
+                    {reply, {error, Error}, State}
+            end
+    end;
 
 handle_call(Msg, _From, State=#state{}) ->
     lager:warning("Unhandled call ~p", [Msg]),
     {noreply, State}.
 
+
+handle_cast({remove_signal_handler, FilterID}, State=#state{}) ->
+    case maps:take(FilterID, State#state.active_filters) of
+        {_, Filter} ->
+            ebus:remove_match(State#state.bus, Filter),
+            ebus:remove_filter(State#state.bus, FilterID);
+        error ->
+            ok
+    end,
+    {noreply, State};
 
 handle_cast(Msg, State=#state{}) ->
     lager:warning("Unhandled cast ~p", [Msg]),

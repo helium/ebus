@@ -8,7 +8,8 @@
 -export([connection_get/2, connection_close/1,
          connection_unique_name/1, connection_bus_id/1,
          connection_request_name/3, connection_release_name/2,
-         connection_add_match/2, connection_send/2, connection_call/4, connection_dispatch/1,
+         connection_add_match/2, connection_remove_match/2,
+         connection_send/2, connection_call/4, connection_dispatch/1,
          connection_set_filters/2,
          connection_register_object_path/3, connection_unregister_object_path/2]).
 -export([message_new_signal/3, message_new_call/4, message_new_reply/1,
@@ -109,6 +110,10 @@ connection_bus_id(_) ->
 connection_add_match(_,_) ->
     not_loaded(?LINE).
 
+-spec connection_remove_match(ebus:connection(), Rule::string()) -> ok | {error, term()}.
+connection_remove_match(_,_) ->
+    not_loaded(?LINE).
+
 -spec connection_request_name(ebus:connection(), Name::string(), Flags::pos_integer())
                              -> {error, term()} | {ok, pos_integer()}.
 connection_request_name(_, _, _) ->
@@ -118,19 +123,19 @@ connection_request_name(_, _, _) ->
 connection_release_name(_, _) ->
     not_loaded(?LINE).
 
--spec connection_send(ebus:connection(), ebus:message()) -> ok | {error, enomem}.
-connection_send(_,_) ->
-    not_loaded(?LINE).
-
 -spec connection_call(ebus:connection(), ebus:message(), pid(), integer()) -> ok | {error, enomem}.
 connection_call(_,_,_,_) ->
+    not_loaded(?LINE).
+
+-spec connection_send(ebus:connection(), ebus:message()) -> ok | {error, enomem}.
+connection_send(_,_) ->
     not_loaded(?LINE).
 
 -spec connection_dispatch(ebus:connection()) -> non_neg_integer().
 connection_dispatch(_) ->
     not_loaded(?LINE).
 
--spec connection_set_filters(ebus:connection(), [{Ref::reference(), ebus:filter()}]) -> ok | {error, enomem}.
+-spec connection_set_filters(ebus:connection(), [{Ref::reference(), ebus:rule()}]) -> ok | {error, enomem}.
 connection_set_filters(_,_) ->
     not_loaded(?LINE).
 

@@ -10,9 +10,9 @@
 %% API
 -export([system/0, session/0, starter/0,
          unique_name/1, request_name/2, request_name/3, release_name/2,
-         add_match/2,
+         rule_to_string/1, add_match/2, remove_match/2,
          add_filter/3, remove_filter/2,
-         send/2, call/4,
+         call/4, send/2,
          register_object_path/3, unregister_object_path/2]).
 
 -type connection() :: reference().
@@ -20,14 +20,15 @@
 -type bus_type() :: session | system | starter.
 -export_type([connection/0, bus_type/0, watch/0]).
 
--type filter() :: #{
+-type rule() :: #{
                     type => message_type(),
                     destination => string(),
                     path => string(),
                     interface => string(),
                     member => string()
                    }.
--export_type([filter/0]).
+-type filter_id() :: non_neg_integer().
+-export_type([rule/0, filter_id/0]).
 
 -type message() :: reference().
 -type message_type() :: call | reply | signal | error | undefined.
@@ -66,9 +67,10 @@
                 connection :: connection(),
                 timeouts=#{} :: #{Timeout::reference() => Timer::reference()},
                 object_monitors=[] :: [{Object::pid(), Path::string(), Monitor::reference()}],
-                filters=[] :: [{reference(), filter()}],
+                filters=[] :: [{reference(), rule()}],
                 filter_targets=#{} :: #{reference() => pid()},
-                filter_next_id=0 :: non_neg_integer()
+                filter_next_id=0 :: non_neg_integer(),
+                wakeup_timer :: reference()
                }).
 
 -define(SESSION, 0).
@@ -142,11 +144,24 @@ request_name(Pid, Name, Opts) when is_list(Opts) ->
 release_name(Pid, Name) ->
     gen_server:call(Pid, {release_name, Name}).
 
--spec add_match(pid(), Rule::string()) -> ok | {error, term()}.
+-spec rule_to_string(rule()) -> string().
+rule_to_string(Rule) ->
+    Entries = lists:keysort(1, maps:to_list(Rule)),
+    Value = fun(V) when is_atom(V) ->
+                    ["'", atom_to_list(V), "'"];
+               (S) -> ["'", S, "'"]
+            end,
+   lists:flatten(lists:join(", ", [[atom_to_list(K), "=", Value(V)] || {K, V} <- Entries])).
+
+-spec add_match(pid(), Rule::rule()) -> ok | {error, term()}.
 add_match(Pid, Rule) ->
     gen_server:call(Pid, {add_match, Rule}).
 
--spec add_filter(pid(), pid(), filter()) -> {ok, reference()} | {error, term()}.
+-spec remove_match(pid(), Rule::rule()) -> ok | {error, term()}.
+remove_match(Pid, Rule) ->
+    gen_server:call(Pid, {remove_match, Rule}).
+
+-spec add_filter(pid(), pid(), rule()) -> {ok, filter_id()} | {error, term()}.
 add_filter(Pid, Target, Filter) ->
     gen_server:call(Pid, {add_filter, Target, Filter}).
 
@@ -154,13 +169,13 @@ add_filter(Pid, Target, Filter) ->
 remove_filter(Pid, Ref) ->
     gen_server:cast(Pid, {remove_filter, Ref}).
 
+-spec call(pid(), message(), Handler::pid(), Timeout::integer()) -> {ok, non_neg_integer()} | {error, term()}.
+call(Pid, Msg, Handler, Timeout) ->
+    gen_server:call(Pid, {call, Msg, Handler, Timeout}).
+
 -spec send(pid(), message()) -> ok | {error, term()}.
 send(Pid, Msg) ->
     gen_server:call(Pid, {send, Msg}).
-
--spec call(pid(), message(), Handler::pid(), Timeout::integer()) -> ok | {error, term()}.
-call(Pid, Msg, Handler, Timeout) ->
-    gen_server:call(Pid, {call, Msg, Handler, Timeout}).
 
 -spec register_object_path(pid(), string(), pid()) -> ok | {error, term()}.
 register_object_path(Pid, Path, ObjectPid) ->
@@ -185,7 +200,7 @@ start_link(Type) ->
 init([IntType]) ->
     erlang:process_flag(trap_exit, true),
     {ok, Conn} = ebus_nif:connection_get(IntType, self()),
-    {ok, #state{connection=Conn}}.
+    {ok, #state{connection=Conn, wakeup_timer=new_wakeup_timer()}}.
 
 
 handle_call(unique_name, _From, State=#state{connection=Conn}) ->
@@ -216,11 +231,13 @@ handle_call({release_name, Name}, _From, State=#state{connection=Conn}) ->
             end,
     {reply, Reply, State};
 handle_call({add_match, Rule}, _From, State=#state{connection=Conn}) ->
-    {reply, ebus_nif:connection_add_match(Conn, Rule), State};
-handle_call({send, Msg}, _From, State=#state{connection=Conn}) ->
-    {reply, ebus_nif:connection_send(Conn, Msg), State};
+    {reply, ebus_nif:connection_add_match(Conn, rule_to_string(Rule)), State};
+handle_call({remove_match, Rule}, _From, State=#state{connection=Conn}) ->
+    {reply, ebus_nif:connection_add_match(Conn, rule_to_string(Rule)), State};
 handle_call({call, Msg, Handler, Timeout}, _From, State=#state{connection=Conn}) ->
     {reply, ebus_nif:connection_call(Conn, Msg, Handler, Timeout), State};
+handle_call({send, Msg}, _From, State=#state{connection=Conn}) ->
+    {reply, ebus_nif:connection_send(Conn, Msg), State};
 handle_call({add_filter, Target, Filter}, _From,
             State=#state{filter_next_id=FilterId, filters=Filters, filter_targets=Targets}) ->
     NewFilters = [{FilterId, Filter} | Filters],
@@ -282,13 +299,14 @@ handle_info({filter_match, Ref, Msg}, State=#state{filter_targets=Targets}) ->
         not_found ->
             {noreply, State};
         Pid ->
-            case (catch Pid ! {filter_match, Msg}) of
+            case (catch Pid ! {filter_match, Ref, Msg}) of
                 {'EXIT', _} ->
                     {noreply, State#state{filter_targets=maps:remove(Ref, Targets)}};
                 _ ->
                     {noreply, State}
             end
     end;
+
 handle_info({select, Watch, undefined, Flags}, State=#state{connection=Conn}) ->
     BusFlag = case Flags of
                   ready_input -> ?WATCH_READABLE;
@@ -299,7 +317,8 @@ handle_info({select, Watch, undefined, Flags}, State=#state{connection=Conn}) ->
     {noreply, State};
 handle_info(wakeup_main, State=#state{connection=Conn}) ->
     self() ! {dispatch_status, ebus_nif:connection_dispatch(Conn)},
-    {noreply, State};
+    erlang:cancel_timer(State#state.wakeup_timer),
+    {noreply, State#state{wakeup_timer=new_wakeup_timer()}};
 handle_info({dispatch_status, Status}, State=#state{connection=Conn}) ->
     case Status of
         ?DISPATCH_DATA_REMAINS ->
@@ -352,6 +371,9 @@ terminate(_Reason, #state{connection=Conn}) ->
 %%
 %% Internal
 %%
+
+new_wakeup_timer() ->
+    erlang:send_after(1000, self(), wakeup_main).
 
 bus_type(Type) ->
     case Type of

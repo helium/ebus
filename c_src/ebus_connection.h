@@ -44,6 +44,9 @@ ERL_NIF_TERM
 ebus_connection_add_match(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[]);
 
 ERL_NIF_TERM
+ebus_connection_remove_match(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[]);
+
+ERL_NIF_TERM
 ebus_connection_send(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[]);
 
 ERL_NIF_TERM

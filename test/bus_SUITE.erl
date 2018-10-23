@@ -66,19 +66,17 @@ name_test(Config) ->
 match_test(Config) ->
     B = ?config(bus, Config),
 
-    ?assertEqual(ok, ebus:add_match(B, "type=signal, interface='test.signal.Type'")),
-    ?assertEqual({error, invalid}, ebus:add_match(B, "type=notthere")),
+    ?assertEqual(ok, ebus:add_match(B, #{type => signal, interface => "test.signal.Type"})),
+    ?assertEqual({error, invalid}, ebus:add_match(B, #{type => notthere})),
 
     ok.
 
 send_test(Config) ->
     B = ?config(bus, Config),
 
-    ok = ebus:add_match(B, "type=signal"),
+    ok = ebus:add_match(B, #{type => signal}),
     {ok, Filter} = ebus:add_filter(B, self(),
-                                   #{
-                                     path => "/test/signal/Object"
-                                    }),
+                                   #{ path => "/test/signal/Object" }),
 
     {ok, M} = ebus_message:new_signal("/test/signal/Object", "test.signal.Type", "Test"),
     Args = [#{"lat" => 48.858845065,
@@ -88,7 +86,7 @@ send_test(Config) ->
     ok = ebus:send(B, M),
 
     Msg = receive
-              {filter_match, M2} -> M2
+              {filter_match, Filter, M2} -> M2
           after 5000 -> erlang:exit(timeout_filter)
           end,
 

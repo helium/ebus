@@ -61,7 +61,7 @@ call_test(Config) ->
                         {stop, Reason, R, State}
                 end),
     meck:expect(call_test, handle_info,
-               fun({filter_match, Msg}, State) ->
+               fun({filter_match, _, Msg}, State) ->
                        ?assertEqual("com.helium.test.Call", ebus_message:interface(Msg)),
                        ?assertEqual("Notice", ebus_message:member(Msg)),
                        {noreply, State}
@@ -78,7 +78,7 @@ call_test(Config) ->
     %% Check noreply
     ?assertEqual(later_reply, gen_server:call(O, {noreply, later_reply})),
 
-    ebus:add_match(B, "type=signal"),
+    ?assertEqual(ok, ebus:add_match(B, #{type => signal})),
 
     SignalAction = {signal, "com.helium.test.Call", "Notice"},
     {ok, F} = ebus:add_filter(B, O, #{ path => Path }),
@@ -124,7 +124,7 @@ cast_test(Config) ->
                         erlang:error({unhandled, M})
                 end),
     meck:expect(cast_test, handle_info,
-               fun({filter_match, Msg}, State) ->
+               fun({filter_match, _, Msg}, State) ->
                        ?assertEqual("com.helium.test.Cast", ebus_message:interface(Msg)),
                        ?assertEqual("Notice", ebus_message:member(Msg)),
                        {noreply, State}
@@ -141,14 +141,14 @@ cast_test(Config) ->
     gen_server:cast(O, noreply),
     meck:wait(cast_test, handle_cast, [noreply, '_'], 1000),
 
-    ebus:add_match(B, "type=signal"),
+    ?assertEqual(ok, ebus:add_match(B, #{ type => signal})),
 
     SignalAction = {signal, "com.helium.test.Cast", "Notice"},
     {ok, F} = ebus:add_filter(B, O, #{ path => Path }),
 
     %% Test result action
     gen_server:cast(O, {noreply, SignalAction}),
-    meck:wait(cast_test, handle_info, [{filter_match, '_'}, '_'], 1000),
+    meck:wait(cast_test, handle_info, [{filter_match, '_', '_'}, '_'], 1000),
 
     ebus:remove_filter(B, F),
 
@@ -177,7 +177,7 @@ info_test(Config) ->
                         {noreply, State, A};
                    ({stop, Reason}, State) ->
                         {stop, Reason, State};
-                   ({filter_match, Msg}, State) ->
+                   ({filter_match, _, Msg}, State) ->
                         ?assertEqual("com.helium.test.Info", ebus_message:interface(Msg)),
                         ?assertEqual("Notice", ebus_message:member(Msg)),
                         {noreply, State};
@@ -196,14 +196,14 @@ info_test(Config) ->
     erlang:send(O, noreply),
     meck:wait(info_test, handle_info, [noreply, '_'], 1000),
 
-    ebus:add_match(B, "type=signal"),
+    ?assertEqual(ok, ebus:add_match(B, #{type => signal})),
 
     SignalAction = {signal, "com.helium.test.Info", "Notice"},
     {ok, F} = ebus:add_filter(B, O, #{ path => Path }),
 
     %% Test result action
     erlang:send(O, {noreply, SignalAction}),
-    meck:wait(info_test, handle_info, [{filter_match, '_'}, '_'], 1000),
+    meck:wait(info_test, handle_info, [{filter_match, '_', '_'}, '_'], 1000),
 
     ebus:remove_filter(B, F),
 
@@ -224,7 +224,7 @@ message_test(Config) ->
     ?assertEqual(ok, ebus:request_name(B, Dest, [{replace_existing, true}])),
 
     Path = "/com/helium/test/Message",
-    ebus:add_match(B, lists:flatten(io_lib:format("path=~s", [Path]))),
+    ?assertEqual(ok, ebus:add_match(B, #{path => Path})),
 
     meck:new(message_test, [non_strict]),
     meck:expect(message_test, init,

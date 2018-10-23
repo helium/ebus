@@ -272,7 +272,7 @@ ebus_connection_add_match(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
 }
 
 ERL_NIF_TERM
-ebus_connection_send(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
+ebus_connection_remove_match(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
 {
     if (argc != 2)
     {
@@ -285,18 +285,41 @@ ebus_connection_send(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
         return enif_make_badarg(env);
     }
 
+    GET_STR(rule, argv[1]);
+
+    DBusError error;
+    dbus_error_init(&error);
+    dbus_bus_remove_match(connection, rule, &error);
+
+    return handle_dbus_error(env, &error);
+}
+
+ERL_NIF_TERM
+ebus_connection_send(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
+{
+    if (argc != 2)
+    {
+        return enif_make_badarg(env);
+    }
+
+    dbus_connection * connection;
+    if (!get_dbus_connection_resource(env, argv[0], &connection))
+    {
+        return enif_make_badarg(env);
+    }
+
     DBusMessage * message;
     if (!get_dbus_message(env, argv[1], &message))
     {
         return enif_make_badarg(env);
     }
 
-    if (!dbus_connection_send(connection, message, NULL))
+    if (!dbus_connection_send(connection->connection, message, NULL))
     {
         return enif_make_tuple2(env, ATOM_ERROR, ATOM_ENOMEM);
     }
 
-    dbus_connection_read_write(connection, 1);
+    dbus_connection_read_write(connection->connection, 1);
     return ATOM_OK;
 }
 
@@ -338,8 +361,6 @@ ebus_connection_call(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
         return enif_make_tuple2(env, ATOM_ERROR, ATOM_ENOMEM);
     }
 
-    unsigned int serial = dbus_message_get_serial(message);
-
     dbus_object * obj = mk_dbus_object_resource(env, &pid, connection);
     if (!dbus_pending_call_set_notify(pending, cb_object_handle_reply, obj, NULL))
     {
@@ -349,6 +370,7 @@ ebus_connection_call(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
     }
 
     dbus_connection_read_write(connection->connection, 1);
+    unsigned int serial = dbus_message_get_serial(message);
     return enif_make_tuple2(env, ATOM_OK, enif_make_uint(env, serial));
 }
 
@@ -367,6 +389,7 @@ ebus_connection_dispatch(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
         return enif_make_badarg(env);
     }
 
+    dbus_connection_read_write(connection, 1);
     return enif_make_int(env, dbus_connection_dispatch(connection));
 }
 

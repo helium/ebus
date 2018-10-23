@@ -3,7 +3,8 @@
 -export([new_call/3, new_call/4, new_reply/1, new_reply/3,
          new_signal/2, new_signal/3, append_args/3, args/1, to_map/1,
          type/1, serial/1, serial/2, reply_serial/1,
-         destination/1, interface/1, path/1, member/1, error/1, infer_signature/1]).
+         destination/1, interface/1, path/1, member/1, error/1, infer_signature/1,
+         interface_member/1]).
 
 -spec new_signal(Path::string(), Member::string()) -> {ok, ebus:message()} | {error, term()}.
 new_signal(Path, Member) ->
@@ -99,9 +100,6 @@ to_map(Msg) ->
 -spec infer_signature(term()) -> ebus:signature().
 infer_signature(Term) ->
     decode_signature(ebus_nif:message_infer_signature(Term)).
-%%
-%% Private
-%%
 
 -spec interface_member(string()) -> {string() | undefined, string()}.
 interface_member(Member) ->
@@ -109,6 +107,10 @@ interface_member(Member) ->
         [Member] -> {undefined, Member};
         [Prefix, Suffix] -> {Prefix, Suffix}
     end.
+
+%%
+%% Private
+%%
 
 -spec encode_signature(ebus:signature()) -> string().
 encode_signature(Signature) ->
