@@ -24,34 +24,36 @@ ebus_filter_match_string(const char * filter_str, const char * msg_str)
 static int
 ebus_filter_matches(ebus_filter * filter, DBusMessage * message)
 {
-    int match = FALSE;
-
-    if (filter->type > 0 && dbus_message_get_type(message) == filter->type)
+    if (filter->type > 0 && dbus_message_get_type(message) != filter->type)
     {
-        match = TRUE;
+        return FALSE;
     }
 
-    if (ebus_filter_match_string(filter->destination, dbus_message_get_destination(message)))
+    if (filter->destination
+        && !ebus_filter_match_string(filter->destination,
+                                     dbus_message_get_destination(message)))
     {
-        match = TRUE;
+        return FALSE;
     }
 
-    if (ebus_filter_match_string(filter->path, dbus_message_get_path(message)))
+    if (filter->path
+        && !ebus_filter_match_string(filter->path, dbus_message_get_path(message)))
     {
-        match = TRUE;
+        return FALSE;
     }
 
-    if (ebus_filter_match_string(filter->interface, dbus_message_get_interface(message)))
+    if (filter->interface && !ebus_filter_match_string(filter->interface, dbus_message_get_interface(message)))
     {
-        match = TRUE;
+        return FALSE;
     }
 
-    if (ebus_filter_match_string(filter->member, dbus_message_get_member(message)))
+    if (filter->member
+        && !ebus_filter_match_string(filter->member, dbus_message_get_member(message)))
     {
-        match = TRUE;
+        return FALSE;
     }
 
-    return match;
+    return TRUE;
 }
 
 DBusHandlerResult

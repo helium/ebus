@@ -146,13 +146,13 @@ handle_call(Msg, _From, State=#state{}) ->
 
 handle_cast({remove_signal_handler, FilterID}, State=#state{}) ->
     case maps:take(FilterID, State#state.active_filters) of
-        {_, Filter} ->
+        {Filter, NewFilters} ->
             ebus:remove_match(State#state.bus, Filter),
-            ebus:remove_filter(State#state.bus, FilterID);
+            ebus:remove_filter(State#state.bus, FilterID),
+            {noreply, State#state{active_filters=NewFilters}};
         error ->
-            ok
-    end,
-    {noreply, State};
+            {noreply, State}
+    end;
 
 handle_cast(Msg, State=#state{}) ->
     lager:warning("Unhandled cast ~p", [Msg]),

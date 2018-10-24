@@ -43,13 +43,15 @@
                     | uint64
                     | double
                     | string
-                    | object_pathpe
+                    | object_path
                     | signature
                     | variant
                     | {array, value_type()}
                     | {struct, [value_type()]}
                     | {dict, KeyType::value_type(), ValueType::value_type}.
--export_type([message/0, message_type/0, signature/0, value_type/0]).
+-type object_path() :: string().
+-export_type([message/0, message_type/0, signature/0, value_type/0,
+              object_path/0]).
 
 -type request_name_opts() :: [request_name_opt()].
 -type request_name_opt() :: {replace_existing, boolean()}

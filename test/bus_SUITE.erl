@@ -74,27 +74,48 @@ match_test(Config) ->
 send_test(Config) ->
     B = ?config(bus, Config),
 
-    ok = ebus:add_match(B, #{type => signal}),
-    {ok, Filter} = ebus:add_filter(B, self(),
-                                   #{ path => "/test/signal/Object" }),
+    Path = "/test/signal/Object",
+    Interface = "test.signal.Interface",
+    AddRule = #{ type => signal,
+                 path => Path,
+                 interface => Interface,
+                 member => "Add"
+               },
+    RemoveRule = #{ type => signal,
+                    path => Path,
+                    interface => Interface,
+                    member => "Remove"
+                  },
+    ok = ebus:add_match(B, AddRule),
+    {ok, AddFilter} = ebus:add_filter(B, self(), AddRule),
 
-    {ok, M} = ebus_message:new_signal("/test/signal/Object", "test.signal.Type", "Test"),
+    ok = ebus:add_match(B, RemoveRule),
+    {ok, RemoveFilter} = ebus:add_filter(B, self(), RemoveRule),
+
+    {ok, AddSignal} = ebus_message:new_signal(Path, Interface, "Add"),
     Args = [#{"lat" => 48.858845065,
               "lon" => 2.352656618,
               "acc" => 22.1}],
-    ebus_message:append_args(M, [{dict, string, double}], Args),
-    ok = ebus:send(B, M),
+    ebus_message:append_args(AddSignal, [{dict, string, double}], Args),
+    ok = ebus:send(B, AddSignal),
 
-    Msg = receive
-              {filter_match, Filter, M2} -> M2
-          after 5000 -> erlang:exit(timeout_filter)
-          end,
+    receive
+        {filter_match, AddFilter, Msg} ->
+            ?assertEqual(Interface, ebus_message:interface(Msg)),
+            ?assertEqual("Add", ebus_message:member(Msg)),
+            ?assertEqual(Path, ebus_message:path(Msg)),
+            ?assertEqual({ok, Args}, ebus_message:args(Msg));
+        {filter_match, RemoveFilter, Msg} ->
+            %% We should not reach here since we never send a Remove
+            %% signal, but if we do it's likely we mismatched the
+            %% filter so one of the following will fail.
+            ?assertEqual(Interface, ebus_message:interface(Msg)),
+            ?assertEqual("Remove", ebus_message:member(Msg)),
+            ?assertEqual(Path, ebus_message:path(Msg))
+    after 5000 -> erlang:exit(timeout_filter)
+    end,
 
-    ?assertEqual("test.signal.Type", ebus_message:interface(Msg)),
-    ?assertEqual("Test", ebus_message:member(Msg)),
-    ?assertEqual("/test/signal/Object", ebus_message:path(Msg)),
-    ?assertEqual({ok, Args}, ebus_message:args(Msg)),
-
-    ok = ebus:remove_filter(B, Filter),
+    ok = ebus:remove_filter(B, AddFilter),
+    ok = ebus:remove_filter(B, RemoveFilter),
 
     ok.
