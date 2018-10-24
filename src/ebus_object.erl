@@ -32,14 +32,17 @@
         {noreply, State::any()} |
         {stop, Reason :: term(), State::any()}.
 
+-export_type([init_result/0, handle_call_result/0, handle_cast_result/0,
+              handle_info_result/0, handle_message_result/0]).
 
 -callback init(Args::[any()]) -> init_result().
 -callback handle_message(Member::string(), Message::ebus:message(), State::any()) -> handle_message_result().
 -callback handle_call(Msg::term(), From::term(), State::any()) -> handle_call_result().
 -callback handle_cast(Msg::term(), State::any()) -> handle_cast_result().
 -callback handle_info(Msg::term(), State::any()) -> handle_info_result().
+-callback terminate(Reason::term(), State::any()) -> any().
 
--optional_callbacks([handle_info/2, handle_call/3, handle_cast/2]).
+-optional_callbacks([handle_info/2, handle_call/3, handle_cast/2, terminate/2]).
 
 -behavior(gen_server).
 
