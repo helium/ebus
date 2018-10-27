@@ -7,7 +7,8 @@
 -type action() ::
         {signal, Interface::string(), Member::string()} |
         {signal, Interface::string(), Member::string(), Types::ebus:signature(), Args::[any()]} |
-        {reply, Msg::ebus:message(), Types::ebus:signature(), Args::[any()]}.
+        {reply, Msg::ebus:message(), Types::ebus:signature(), Args::[any()]} |
+        {continue, Continue::any}.
 
 -type handle_call_result() ::
         {reply, Reply :: term(), State :: any()} |
@@ -40,15 +41,16 @@
 -callback handle_call(Msg::term(), From::term(), State::any()) -> handle_call_result().
 -callback handle_cast(Msg::term(), State::any()) -> handle_cast_result().
 -callback handle_info(Msg::term(), State::any()) -> handle_info_result().
+-callback handle_continue(Msg::term(), State::any()) -> handle_info_result().
 -callback terminate(Reason::term(), State::any()) -> any().
 
--optional_callbacks([handle_info/2, handle_call/3, handle_cast/2, terminate/2]).
+-optional_callbacks([handle_info/2, handle_call/3, handle_cast/2, handle_continue/2, terminate/2]).
 
 -behavior(gen_server).
 
 %% gen_server
 -export([start/5, stop/2, start_link/5, init/1,
-         handle_call/3, handle_cast/2, handle_info/2,
+         handle_call/3, handle_cast/2, handle_info/2, handle_continue/2,
          terminate/2]).
 
 -record(state, {
@@ -85,11 +87,11 @@ handle_call(Msg, From, State=#state{module=Module, state=ModuleState0}) ->
                     {reply, Reply, ModuleState} ->
                         {reply, Reply, State#state{state=ModuleState}};
                     {reply, Reply, ModuleState, Action} ->
-                        {reply, Reply, handle_action(Action, State#state{state=ModuleState})};
+                        handle_action({reply, Reply}, Action, State#state{state=ModuleState});
                     {noreply, ModuleState}  ->
                         {noreply, State#state{state=ModuleState}};
                     {noreply, ModuleState, Action} ->
-                        {noreply, handle_action(Action, State#state{state=ModuleState})};
+                        handle_action(noreply, Action, State#state{state=ModuleState});
                     {stop, Reason, ModuleState} ->
                         {stop, Reason, State#state{state=ModuleState}};
                     {stop, Reason, Reply, ModuleState} ->
@@ -106,7 +108,7 @@ handle_cast(Msg, State=#state{module=Module, state=ModuleState0}) ->
                     {noreply, ModuleState}  ->
                         {noreply, State#state{state=ModuleState}};
                     {noreply, ModuleState, Action} ->
-                        {noreply, handle_action(Action, State#state{state=ModuleState})};
+                        handle_action(noreply, Action, State#state{state=ModuleState});
                     {stop, Reason, ModuleState} ->
                         {stop, Reason, State#state{state=ModuleState}}
                 end;
@@ -118,8 +120,8 @@ handle_info({handle_message, Msg}, State=#state{module=Module, state=ModuleState
         true ->
             case Module:handle_message(ebus_message:member(Msg), Msg, ModuleState0) of
                 {reply, Types, Args, ModuleState} ->
-                    {noreply, handle_action({reply, Msg, Types, Args},
-                                            State#state{state=ModuleState})};
+                    handle_action(noreply, {reply, Msg, Types, Args},
+                                  State#state{state=ModuleState});
                 {noreply, ModuleState}  ->
                     {noreply, State#state{state=ModuleState}};
                 {stop, Reason, ModuleState} ->
@@ -130,14 +132,13 @@ handle_info({handle_message, Msg}, State=#state{module=Module, state=ModuleState
     end;
 handle_info(Msg, State=#state{module=Module, state=ModuleState0}) ->
     case erlang:function_exported(Module, handle_info, 2) of
-        true -> case Module:handle_info(Msg, ModuleState0) of
-                    {noreply, ModuleState}  ->
-                        {noreply, State#state{state=ModuleState}};
-                    {noreply, ModuleState, Action} ->
-                        {noreply, handle_action(Action, State#state{state=ModuleState})};
-                    {stop, Reason, ModuleState} ->
-                        {stop, Reason, State#state{state=ModuleState}}
-                end;
+        true -> handle_info_result(Module:handle_info(Msg, ModuleState0), State);
+        false -> {noreply, State}
+    end.
+
+handle_continue(Msg, State=#state{module=Module, state=ModuleState0}) ->
+    case erlang:function_exported(Module, handle_continue, 2) of
+        true -> handle_info_result(Module:handle_continue(Msg, ModuleState0), State);
         false -> {noreply, State}
     end.
 
@@ -154,16 +155,37 @@ terminate(Reason, State=#state{module=Module, state=ModuleState}) ->
 %% Internal
 %%
 
-handle_action({signal, Interface, Member}, State=#state{}) ->
-    handle_action({signal, Interface, Member, [], []}, State);
-handle_action({signal, Interface, Member, Types, Args}, State=#state{}) ->
+handle_info_result({noreply, ModuleState}, State) ->
+    {noreply, State#state{state=ModuleState}};
+handle_info_result({noreply, ModuleState, Action}, State) ->
+    handle_action(noreply, Action, State#state{state=ModuleState});
+handle_info_result({stop, Reason, ModuleState}, State) ->
+    {stop, Reason, State#state{state=ModuleState}}.
+
+-spec handle_action(Result::noreply | {reply, any()}, Action::action(), #state{})
+                   -> {noreply, #state{}} |
+                      {noreply, #state{}, {continue, any()}} |
+                      {reply, any(), #state{}} |
+                      {reply, any(), #state{}, {continue, any()}}.
+handle_action(Result, {signal, Interface, Member}, State=#state{}) ->
+    handle_action(Result, {signal, Interface, Member, [], []}, State);
+handle_action(Result, {signal, Interface, Member, Types, Args}, State=#state{}) ->
     {ok, Msg}  = ebus_message:new_signal(State#state.path, Interface, Member),
     ok = ebus_message:append_args(Msg, Types, Args),
     ok = ebus:send(State#state.bus, Msg),
-    State;
-handle_action({reply, Msg, Types, Args}, State=#state{}) ->
+    handle_result(Result, State);
+handle_action(Result, {reply, Msg, Types, Args}, State=#state{}) ->
     {ok, Reply} = ebus_message:new_reply(Msg, Types, Args),
     ok = ebus:send(State#state.bus, Reply),
-    State;
-handle_action(_, State=#state{}) ->
-    State.
+    handle_result(Result, State);
+handle_action(Result, {continue, Continue}, State=#state{}) ->
+    handle_result({Result, {continue, Continue}}, State).
+
+handle_result(noreply, State=#state{}) ->
+    {noreply, State};
+handle_result({noreply, {continue, Continue}}, State) ->
+    {noreply, State, {continue, Continue}};
+handle_result({reply, Reply}, State=#state{}) ->
+    {reply, Reply, State};
+handle_result({{reply, Reply}, {continue, Continue}}, State=#state{}) ->
+    {reply, Reply, State, {continue, Continue}}.

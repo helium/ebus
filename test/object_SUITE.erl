@@ -66,6 +66,10 @@ call_test(Config) ->
                        ?assertEqual("Notice", ebus_message:member(Msg)),
                        {noreply, State}
                end),
+    meck:expect(call_test, handle_continue,
+               fun(test_continue, State) ->
+                       {noreply, State}
+               end),
     meck:expect(call_test, terminate,
                 fun(stop_reason, _State) -> ok end),
 
@@ -90,6 +94,14 @@ call_test(Config) ->
     %% Test noreply result action
     ?assertEqual(ok, gen_server:call(O, {noreply, ok, SignalAction})),
     meck:wait(2, call_test, handle_info, '_', 1000),
+
+    %% Test reply continue action
+    ?assertEqual(ok, gen_server:call(O, {reply, ok, {continue, test_continue}})),
+    meck:wait(1, call_test, handle_continue, '_', 1000),
+
+    %% Test noreply continue action
+    ?assertEqual(ok, gen_server:call(O, {noreply, ok, {continue, test_continue}})),
+    meck:wait(2, call_test, handle_continue, '_', 1000),
 
     ebus:remove_filter(B, F),
 
@@ -129,6 +141,10 @@ cast_test(Config) ->
                        ?assertEqual("Notice", ebus_message:member(Msg)),
                        {noreply, State}
                end),
+    meck:expect(cast_test, handle_continue,
+               fun(test_continue, State) ->
+                       {noreply, State}
+               end),
     meck:expect(cast_test, terminate,
                 fun(stop_reason, _State) -> ok end),
 
@@ -149,6 +165,9 @@ cast_test(Config) ->
     %% Test result action
     gen_server:cast(O, {noreply, SignalAction}),
     meck:wait(cast_test, handle_info, [{filter_match, '_', '_'}, '_'], 1000),
+
+    %% Test result continue
+    gen_server:cast(O, {noreply, {continue, test_continue}}),
 
     ebus:remove_filter(B, F),
 
@@ -184,6 +203,10 @@ info_test(Config) ->
                    (M, _) ->
                         erlang:error({unhandled, M})
                 end),
+    meck:expect(info_test, handle_continue,
+                fun(test_continue, State) ->
+                        {noreply, State}
+                end),
     meck:expect(info_test, terminate,
                 fun(stop_reason, _State) -> ok end),
 
@@ -204,6 +227,9 @@ info_test(Config) ->
     %% Test result action
     erlang:send(O, {noreply, SignalAction}),
     meck:wait(info_test, handle_info, [{filter_match, '_', '_'}, '_'], 1000),
+
+    %% Test continue action
+    erlang:send(O, {noreply, {continue, test_continue}}),
 
     ebus:remove_filter(B, F),
 
