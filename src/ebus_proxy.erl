@@ -128,7 +128,6 @@ handle_call({add_signal_handler, Path, Member, Handler}, _From, State=#state{}) 
                         member => Name,
                         interface => IFace
                       },
-            io:format("ADDING MATCH ~p", [ebus:rule_to_string(Filter)]),
             ok = ebus:add_match(State#state.bus, Filter),
             case ebus:add_filter(State#state.bus, Handler, Filter) of
                 {ok, FilterID} ->
