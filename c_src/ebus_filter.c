@@ -24,7 +24,8 @@ ebus_filter_match_string(const char * filter_str, const char * msg_str)
 static int
 ebus_filter_matches(ebus_filter * filter, DBusMessage * message)
 {
-    if (filter->type > 0 && dbus_message_get_type(message) != filter->type)
+    if (filter->type != DBUS_MESSAGE_TYPE_INVALID
+        && dbus_message_get_type(message) != filter->type)
     {
         return FALSE;
     }
@@ -157,6 +158,7 @@ mk_ebus_filter(ErlNifEnv * env, ERL_NIF_TERM filter, ebus_filter * dest)
     if (!enif_get_uint(env, ref, &dest->id))
         return FALSE;
 
+    dest->type = DBUS_MESSAGE_TYPE_INVALID;
     ERL_NIF_TERM term;
     if (enif_get_map_value(env, map, ATOM_TYPE, &term)
         && !get_dbus_message_type(env, term, &dest->type))

@@ -46,9 +46,9 @@ get_dbus_message(ErlNifEnv * env, ERL_NIF_TERM term, DBusMessage ** dest)
 }
 
 int
-get_dbus_message_type(ErlNifEnv * env, ERL_NIF_TERM term, int * dest)
+get_dbus_message_type(ErlNifEnv * env, ERL_NIF_TERM term, unsigned int * dest)
 {
-    int result = -1;
+    unsigned int result = DBUS_MESSAGE_TYPE_INVALID;
     if (term == ATOM_ERROR)
         result = DBUS_MESSAGE_TYPE_ERROR;
     else if (term == ATOM_CALL)
@@ -59,11 +59,11 @@ get_dbus_message_type(ErlNifEnv * env, ERL_NIF_TERM term, int * dest)
         result = DBUS_MESSAGE_TYPE_METHOD_RETURN;
 
     *dest = result;
-    return result > 0;
+    return result != DBUS_MESSAGE_TYPE_INVALID;
 }
 
 static ERL_NIF_TERM
-mk_dbus_message_type(ErlNifEnv *env, int type)
+mk_dbus_message_type(ErlNifEnv * env, int type)
 {
     switch (type)
     {
@@ -423,7 +423,8 @@ ebus_message_get_error(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
 
     DBusError error;
     dbus_error_init(&error);
-    if (!dbus_set_error_from_message(&error, message)) {
+    if (!dbus_set_error_from_message(&error, message))
+    {
         return ATOM_OK;
     }
 
@@ -438,11 +439,12 @@ ebus_message_infer_signature(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[
         return enif_make_badarg(env);
     }
 
-   char sig[DBUS_MAXIMUM_SIGNATURE_LENGTH];
+    char sig[DBUS_MAXIMUM_SIGNATURE_LENGTH];
     sig[0]          = DBUS_TYPE_INVALID;
     size_t sig_size = DBUS_MAXIMUM_SIGNATURE_LENGTH;
 
-    if (!ebus_message_infer_type(env, argv[0], sig, &sig_size)) {
+    if (!ebus_message_infer_type(env, argv[0], sig, &sig_size))
+    {
         return enif_make_badarg(env);
     }
 

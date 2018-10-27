@@ -8,7 +8,7 @@
 typedef struct
 {
     unsigned     id;
-    int          type;
+    unsigned int type;
     const char * destination;
     const char * path;
     const char * interface;

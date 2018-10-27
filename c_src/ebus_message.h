@@ -13,7 +13,7 @@ bool
 get_dbus_message(ErlNifEnv * env, ERL_NIF_TERM term, DBusMessage ** dest);
 
 int
-get_dbus_message_type(ErlNifEnv * env, ERL_NIF_TERM term, int * dest);
+get_dbus_message_type(ErlNifEnv * env, ERL_NIF_TERM term, unsigned int * dest);
 
 ERL_NIF_TERM
 ebus_message_new_signal(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[]);
