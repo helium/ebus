@@ -8,6 +8,7 @@
         {signal, Interface::string(), Member::string()} |
         {signal, Interface::string(), Member::string(), Types::ebus:signature(), Args::[any()]} |
         {reply, Msg::ebus:message(), Types::ebus:signature(), Args::[any()]} |
+        {reply_error, Msg::ebus:message(), ErrorName::string(), ErrorMsg::string() | undefined} |
         {continue, Continue::any}.
 
 -type handle_call_result() ::
@@ -29,8 +30,9 @@
         {stop, Reason :: term(), State::any()}.
 
 -type handle_message_result() ::
-        {reply, Types::ebus:signature(), Args::[any()]} |
         {noreply, State::any()} |
+        {reply, Types::ebus:signature(), Args::[any()], State::any()} |
+        {reply_error, ErrorName::string(), ErrorMsg::string() | undefined, State::any()} |
         {stop, Reason :: term(), State::any()}.
 
 -export_type([init_result/0, handle_call_result/0, handle_cast_result/0,
@@ -100,8 +102,6 @@ handle_call(Msg, From, State=#state{module=Module, state=ModuleState0}) ->
         false -> {reply, ok, State}
     end.
 
-handle_cast({stop, Reason}, State=#state{}) ->
-    {stop, Reason, State};
 handle_cast(Msg, State=#state{module=Module, state=ModuleState0}) ->
     case erlang:function_exported(Module, handle_cast, 2) of
         true -> case Module:handle_cast(Msg, ModuleState0) of
@@ -122,6 +122,9 @@ handle_info({handle_message, Msg}, State=#state{module=Module, state=ModuleState
                 {reply, Types, Args, ModuleState} ->
                     handle_action(noreply, {reply, Msg, Types, Args},
                                   State#state{state=ModuleState});
+                {reply_error, ErrorName, ErrorMsg, ModuleState} ->
+                    handle_action(noreply, {reply_error, Msg, ErrorName, ErrorMsg},
+                                 State#state{state=ModuleState});
                 {noreply, ModuleState}  ->
                     {noreply, State#state{state=ModuleState}};
                 {stop, Reason, ModuleState} ->
@@ -176,6 +179,10 @@ handle_action(Result, {signal, Interface, Member, Types, Args}, State=#state{}) 
     handle_result(Result, State);
 handle_action(Result, {reply, Msg, Types, Args}, State=#state{}) ->
     {ok, Reply} = ebus_message:new_reply(Msg, Types, Args),
+    ok = ebus:send(State#state.bus, Reply),
+    handle_result(Result, State);
+handle_action(Result, {reply_error, Msg, ErrorName, ErrorMsg}, State=#state{}) ->
+    {ok, Reply} = ebus_message:new_reply_error(Msg, ErrorName, ErrorMsg),
     ok = ebus:send(State#state.bus, Reply),
     handle_result(Result, State);
 handle_action(Result, {continue, Continue}, State=#state{}) ->

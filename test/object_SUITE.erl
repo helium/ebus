@@ -162,17 +162,22 @@ cast_test(Config) ->
     SignalAction = {signal, "com.helium.test.Cast", "Notice"},
     {ok, F} = ebus:add_filter(B, O, #{ path => Path }),
 
-    %% Test result action
+    %% Test result signal action, which noreplies to the cast and we
+    %% should then see a handle_info with a filter_match.
     gen_server:cast(O, {noreply, SignalAction}),
     meck:wait(cast_test, handle_info, [{filter_match, '_', '_'}, '_'], 1000),
 
-    %% Test result continue
+    %% Test result continue. This is the only case that will invoke
+    %% handle_continue so we rely on validate to catch any failures to
+    %% call it.
     gen_server:cast(O, {noreply, {continue, test_continue}}),
 
     ebus:remove_filter(B, F),
 
-    %% Check stop
+    %% Check stop. Wait for the handle_cast call to allow the coverage
+    %% to see the actual stop response from the callback.
     gen_server:cast(O, {stop, stop_reason}),
+    meck:wait(cast_test, handle_cast, [{stop, stop_reason}, '_'], 1000),
 
     meck:validate(cast_test),
     meck:unload(cast_test),
@@ -264,6 +269,9 @@ message_test(Config) ->
                   ("Reply", Msg, State) ->
                        ?assertEqual(Path, ebus_message:path(Msg)),
                        {reply, [bool], [true], State};
+                  ("ErrorReply", Msg, State) ->
+                       ?assertEqual(Path, ebus_message:path(Msg)),
+                       {reply_error, "org.freedesktop.DBus.Error.Failed", undefined, State};
                   ("Stop", _, State) ->
                        {stop, normal, State}
                end),
@@ -281,6 +289,10 @@ message_test(Config) ->
     {ok, ReplyMsg} = ebus_message:new_call(Dest, Path, "Reply"),
     ebus:send(B, ReplyMsg),
     meck:wait(message_test, handle_message, ["Reply", '_', '_'], 1000),
+
+    {ok, ErrorReplyMsg} = ebus_message:new_call(Dest, Path, "ErrorReply"),
+    ebus:send(B, ErrorReplyMsg),
+    meck:wait(message_test, handle_message, ["ErrorReply", '_', '_'], 1000),
 
     {ok, StopMsg} = ebus_message:new_call(Dest, Path, "Stop"),
     ebus:send(B, StopMsg),

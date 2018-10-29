@@ -25,6 +25,9 @@ ERL_NIF_TERM
 ebus_message_new_reply(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[]);
 
 ERL_NIF_TERM
+ebus_message_new_reply_error(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[]);
+
+ERL_NIF_TERM
 ebus_message_append_args(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[]);
 
 ERL_NIF_TERM

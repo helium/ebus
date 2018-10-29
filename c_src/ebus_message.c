@@ -192,6 +192,41 @@ ebus_message_new_reply(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
     return enif_make_tuple2(env, ATOM_OK, mk_dbus_message(env, reply));
 }
 
+ERL_NIF_TERM
+ebus_message_new_reply_error(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])
+{
+    if (argc != 3)
+    {
+        return enif_make_badarg(env);
+    }
+
+    DBusMessage * message;
+    if (!get_dbus_message(env, argv[0], &message))
+    {
+        return enif_make_badarg(env);
+    }
+
+    GET_STR(error_name, argv[1]);
+    if (!dbus_validate_error_name(error_name, NULL))
+    {
+        return enif_make_badarg(env);
+    }
+
+    GET_STR(maybe_error_msg, argv[2]);
+    const char * error_msg = maybe_error_msg;
+    if (maybe_error_msg_len == 0)
+    {
+        error_msg = NULL;
+    }
+
+    DBusMessage * reply = dbus_message_new_error(message, error_name, error_msg);
+    if (!reply)
+    {
+        return enif_make_tuple2(env, ATOM_ERROR, ATOM_ENOMEM);
+    }
+
+    return enif_make_tuple2(env, ATOM_OK, mk_dbus_message(env, reply));
+}
 
 ERL_NIF_TERM
 ebus_message_append_args(ErlNifEnv * env, int argc, const ERL_NIF_TERM argv[])

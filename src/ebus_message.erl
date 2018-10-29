@@ -1,6 +1,7 @@
 -module(ebus_message).
 
--export([new_call/3, new_call/4, new_reply/1, new_reply/3,
+-export([new_call/3, new_call/4,
+         new_reply/1, new_reply/3, new_reply_error/2, new_reply_error/3,
          new_signal/2, new_signal/3, append_args/3, args/1, to_map/1,
          type/1, serial/1, serial/2, reply_serial/1,
          destination/1, interface/1, path/1, member/1, error/1, infer_signature/1,
@@ -44,6 +45,18 @@ new_reply(Msg, Types, Args) ->
             {error, Reason}
     end.
 
+-spec new_reply_error(ebus:message(), string()) -> {ok, ebus:message()} | {error, term()}.
+new_reply_error(Msg, ErrorName) ->
+    new_reply_error(Msg, ErrorName, undefined).
+
+-spec new_reply_error(ebus:message(), string(), string() | undefined)
+                     -> {ok, ebus:message()} | {error, term()}.
+new_reply_error(Msg, ErrorName, ErrorMsg) ->
+    MaybeStr = fun(undefined) -> "";
+                  (Str) -> Str
+               end,
+    ebus_nif:message_new_reply_error(Msg, ErrorName, MaybeStr(ErrorMsg)).
+
 -spec append_args(ebus:message(), ebus:signature(), [any()]) -> ok | {error, term()}.
 append_args(Msg, Signature, Args) when length(Signature) == length(Args) ->
     ebus_nif:message_append_args(Msg, lists:flatten(encode_signature(Signature)), Args).
@@ -84,6 +97,9 @@ path(Msg) ->
 member(Msg) ->
     ebus_nif:message_get_member(Msg).
 
+%% @doc Gets the error name from the given message if it's an
+%% error, and returns it as an `{error, Error}' tuple. Returns `ok' if
+%% the message is not an error message.
 -spec error(ebus:message()) -> ok | {error, term()}.
 error(Msg) ->
     ebus_nif:message_get_error(Msg).

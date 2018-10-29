@@ -5,7 +5,7 @@
 
 %% API
 -export([call/2, call/3, call/5, call/6,
-        send/2, send/3, send/5,
+        bus/1, send/2, send/3, send/5,
         add_signal_handler/3, add_signal_handler/4, remove_signal_handler/2]).
 
 %% gen_server
@@ -68,6 +68,10 @@ add_signal_handler(Pid, Path, Member, Handler) ->
 -spec remove_signal_handler(pid(), ebus:filter_id()) -> ok.
 remove_signal_handler(Pid, Ref) ->
     gen_server:cast(Pid, {remove_signal_handler, Ref}).
+
+-spec bus(ebus:proxy()) -> ebus:bus().
+bus(Proxy) ->
+    gen_server:call(Proxy, bus).
 
 %% gen_server
 %%
@@ -137,6 +141,9 @@ handle_call({add_signal_handler, Path, Member, Handler}, _From, State=#state{}) 
                     {reply, {error, Error}, State}
             end
     end;
+
+handle_call(bus, _From, State=#state{}) ->
+    {reply, State#state.bus, State};
 
 handle_call(Msg, _From, State=#state{}) ->
     lager:warning("Unhandled call ~p", [Msg]),

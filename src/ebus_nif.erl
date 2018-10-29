@@ -12,7 +12,7 @@
          connection_send/2, connection_call/4, connection_dispatch/1,
          connection_set_filters/2,
          connection_register_object_path/3, connection_unregister_object_path/2]).
--export([message_new_signal/3, message_new_call/4, message_new_reply/1,
+-export([message_new_signal/3, message_new_call/4, message_new_reply/1, message_new_reply_error/3,
          message_append_args/3, message_get_args/1, message_get_type/1,
          message_get_serial/1, message_set_serial/2, message_get_reply_serial/1,
          message_get_destination/1, message_get_path/1, message_get_interface/1, message_get_member/1,
@@ -36,6 +36,11 @@ message_new_call(_,_,_,_) ->
 
 -spec message_new_reply(ebus:message()) -> {ok, ebus:message()} | {error, term()}.
 message_new_reply(_) ->
+    not_loaded(?LINE).
+
+-spec message_new_reply_error(ebus:message(), Error::string(), Info::string())
+                             -> {ok, ebus:message()} | {error, term()}.
+message_new_reply_error(_,_,_) ->
     not_loaded(?LINE).
 
 -spec message_append_args(ebus:message(), Signature::string(), Args::[any()]) -> ok | {error, string()}.

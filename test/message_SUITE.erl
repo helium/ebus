@@ -96,6 +96,18 @@ reply_test(_Config) ->
     ?assertEqual(reply, ebus_message:type(R)),
     ?assertEqual(ok, ebus_message:error(R)),
 
+    %% Try with both name and info in the error message
+    {ok, ER} = ebus_message:new_reply_error(M, "org.freedesktop.DBus.Error.Failed", "custom message"),
+    ?assertEqual(error, ebus_message:type(ER)),
+    ?assertEqual({error, "org.freedesktop.DBus.Error.Failed"}, ebus_message:error(ER)),
+    ?assertEqual({ok, ["custom message"]}, ebus_message:args(ER)),
+
+    %% Try an empty info in the error message
+    {ok, ER2} = ebus_message:new_reply_error(M, "org.freedesktop.DBus.Error.Failed"),
+    ?assertEqual(error, ebus_message:type(ER2)),
+    ?assertEqual({error, "org.freedesktop.DBus.Error.Failed"}, ebus_message:error(ER2)),
+    ?assertEqual({ok, []}, ebus_message:args(ER2)),
+
     ok.
 
 arg_int_test(Config) ->

@@ -15,12 +15,12 @@
  */
 
 #include "ebus_connection.h"
-#include "ebus_message.h"
-#include "ebus_shared.h"
 #include "ebus_error.h"
+#include "ebus_message.h"
+#include "ebus_object.h"
+#include "ebus_shared.h"
 #include "ebus_timeout.h"
 #include "ebus_watch.h"
-#include "ebus_object.h"
 
 ERL_NIF_TERM ATOM_OK;
 ERL_NIF_TERM ATOM_ERROR;
@@ -43,12 +43,19 @@ static ErlNifFunc nif_funcs[] = {
     {"connection_send", 2, ebus_connection_send, ERL_NIF_DIRTY_JOB_IO_BOUND},
     {"connection_dispatch", 1, ebus_connection_dispatch, ERL_NIF_DIRTY_JOB_CPU_BOUND},
     {"connection_set_filters", 2, ebus_connection_set_filters, ERL_NIF_DIRTY_JOB_CPU_BOUND},
-    {"connection_register_object_path", 3, ebus_connection_register_object_path, 0},
-    {"connection_unregister_object_path", 2, ebus_connection_unregister_object_path, 0},
+    {"connection_register_object_path",
+     3,
+     ebus_connection_register_object_path,
+     ERL_NIF_DIRTY_JOB_IO_BOUND},
+    {"connection_unregister_object_path",
+     2,
+     ebus_connection_unregister_object_path,
+     ERL_NIF_DIRTY_JOB_IO_BOUND},
 
     {"message_new_signal", 3, ebus_message_new_signal, 0},
     {"message_new_call", 4, ebus_message_new_call, 0},
     {"message_new_reply", 1, ebus_message_new_reply, 0},
+    {"message_new_reply_error", 3, ebus_message_new_reply_error, 0},
     {"message_append_args", 3, ebus_message_append_args, ERL_NIF_DIRTY_JOB_CPU_BOUND},
     {"message_get_args", 1, ebus_message_get_args, ERL_NIF_DIRTY_JOB_CPU_BOUND},
     {"message_get_type", 1, ebus_message_get_type, 0},
