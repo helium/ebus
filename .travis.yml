@@ -15,5 +15,4 @@ cache:
   - $HOME/.cache/rebar3
 
 script:
-  dbus-launch ./rebar3 as test do eunit,ct && ./rebar3 dialyzer
-  ./rebar3 coveralls send || true
+  dbus-launch ./rebar3 as test do eunit,ct && ./rebar3 dialyzer && (./rebar3 coveralls send || true)

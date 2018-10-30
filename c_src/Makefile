@@ -30,7 +30,7 @@ else ifeq ($(UNAME_SYS), Linux)
 	CC ?= gcc
 	MACHINE ?= $(shell $(CC) -dumpmachine)
 	CFLAGS ?= -g3 -ggdb -std=c99 -finline-functions -Wall -Wmissing-prototypes
-	CFLAGS += -I $(STAGING_DIR)/usr/include/dbus-1.0 -I $(STAGING_DIR)/usr/lib/dbus-1.0/include -I $(STAGING_DIR)/usr/lib$(MACHINE)/dbus-1.0/include
+	CFLAGS += -I $(STAGING_DIR)/usr/include/dbus-1.0 -I $(STAGING_DIR)/usr/lib/dbus-1.0/include -I $(STAGING_DIR)/usr/lib/$(MACHINE)/dbus-1.0/include
 	CXXFLAGS ?= -O3 -finline-functions -Wall
 endif
 
