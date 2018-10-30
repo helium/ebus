@@ -1,6 +1,6 @@
 [![Travis][travis badge]][travis]
 [![Hex.pm Version][hex version badge]][hex]
-[![Hex.pm License][hex license badge]][hex]
+[![License][license badge]][license]
 [![Erlang Versions][erlang version badge]][erlang]
 [![Build Tool][build tool]][rebar]
 
@@ -72,8 +72,9 @@ To run the tests run `make test`.
 [travis]: https://travis-ci.com/helium/ebus
 [travis badge]: https://img.shields.io/travis/com/helium/ebus/master.svg?style=flat-square
 [hex]: https://hex.pm/packages/ebus
+[license]: https://github.com/helium/ebus/blob/master/LICENSE
+[license badge]: https://img.shields.io/github/license/helium/ebus.svg
 [hex version badge]: https://img.shields.io/hexpm/v/ebus.svg?style=flat-square
-[hex license badge]: https://img.shields.io/hexpm/l/ebus.svg?style=flat-square
 [erlang version badge]: https://img.shields.io/badge/erlang-21.1-blue.svg?style=flat-square
 [build tool]: https://img.shields.io/badge/build%20tool-rebar3-orange.svg?style=flat-square
 
