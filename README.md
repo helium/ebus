@@ -70,7 +70,7 @@ To run the tests run `make test`.
 
 <!-- Badges -->
 [travis]: https://travis-ci.com/helium/ebus
-[travis badge]: https://img.shields.io/travis/helium/ebus/master.svg?style=flat-square
+[travis badge]: https://img.shields.io/travis/com/helium/ebus/master.svg?style=flat-square
 [hex]: https://hex.pm/packages/ebus
 [hex version badge]: https://img.shields.io/hexpm/v/ebus.svg?style=flat-square
 [hex license badge]: https://img.shields.io/hexpm/l/ebus.svg?style=flat-square
