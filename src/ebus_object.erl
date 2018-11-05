@@ -118,7 +118,7 @@ handle_cast(Msg, State=#state{module=Module, state=ModuleState0}) ->
 handle_info({handle_message, Msg}, State=#state{module=Module, state=ModuleState0}) ->
     case erlang:function_exported(Module, handle_message, 3) of
         true ->
-            case Module:handle_message(ebus_message:member(Msg), Msg, ModuleState0) of
+            case Module:handle_message(ebus_message:interface_member(Msg), Msg, ModuleState0) of
                 {reply, Types, Args, ModuleState} ->
                     handle_action(noreply, {reply, Msg, Types, Args},
                                   State#state{state=ModuleState});

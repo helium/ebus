@@ -1,12 +1,15 @@
 -module(ebus_proxy).
 
+-include("ebus.hrl").
 
 -behavior(gen_server).
 
 %% API
 -export([call/2, call/3, call/5, call/6,
         bus/1, send/2, send/3, send/5,
-        add_signal_handler/3, add_signal_handler/4, remove_signal_handler/2]).
+        add_signal_handler/3, add_signal_handler/4, remove_signal_handler/2,
+        stop/1]).
+-export([managed_objects/1, managed_objects/2]).
 
 %% gen_server
 -export([start/3, start_link/3, init/1,
@@ -25,53 +28,67 @@
 %%
 
 
--spec call(pid(), string()) -> {ok, Response::term()} | {error, term()}.
+-spec call(ebus:proxy(), string()) -> {ok, Response::term()} | {error, term()}.
 call(Pid, Member) ->
     call(Pid, "/", Member).
 
 call(Pid, Path, Member) ->
     call(Pid, Path, Member, [], []).
 
--spec call(pid(), string(), string(), ebus:signature(), [any()]) -> {ok, Response::term()} | {error, term()}.
+-spec call(ebus:proxy(), string(), string(), ebus:signature(), [any()])
+          -> {ok, Response::term()} | {error, term()}.
 call(Pid, Path, Member, Types, Args) ->
     %% Using the dbus recommended `-1` means a 25 second (!) timeout
     call(Pid, Path, Member, Types, Args, 5000).
 
--spec call(pid(), Path::string(), Member::string(),
+-spec call(ebus:proxy(), Path::string(), Member::string(),
            Sig::ebus:signature(), Args::[any()],
            Timeout::integer()) -> {ok, Response::term()} | {error, term()}.
 call(Pid, Path, Member, Types, Args, Timeout) ->
     gen_server:call(Pid, {call, Path, Member, Types, Args, Timeout}, infinity).
 
--spec send(pid(), string()) -> ok | {error, term()}.
+-spec send(ebus:proxy(), string()) -> ok | {error, term()}.
 send(Pid, Member) ->
     send(Pid, "/", Member).
 
+-spec send(ebus:proxy(), Path::string(), Member::string()) -> {ok, Response::term()} | {error, term()}.
 send(Pid, Path, Member) ->
     send(Pid, Path, Member, [], []).
 
--spec send(pid(), Path::string(), Member::string(),
+-spec send(ebus:proxy(), Path::string(), Member::string(),
            Sig::ebus:signature(), Args::[any()]) -> ok | {error, term()}.
 send(Pid, Path, Member, Types, Args) ->
     gen_server:call(Pid, {send, Path, Member, Types, Args}, infinity).
 
--spec add_signal_handler(pid(), Member::string(), Handler::pid())
+-spec add_signal_handler(ebus:proxy(), Member::string(), Handler::pid())
                         -> {ok, ebus:filter_id()} | {error, term()}.
 add_signal_handler(Pid, Member, Handler) ->
     add_signal_handler(Pid, "/", Member, Handler).
 
--spec add_signal_handler(pid(), Path::string(), Member::string(), Handler::pid())
+-spec add_signal_handler(ebus:proxy(), Path::string(), Member::string(), Handler::pid())
                         -> {ok, ebus:filter_id()} | {error, term()}.
 add_signal_handler(Pid, Path, Member, Handler) ->
     gen_server:call(Pid, {add_signal_handler, Path, Member, Handler}).
 
--spec remove_signal_handler(pid(), ebus:filter_id()) -> ok.
+-spec remove_signal_handler(ebus:proxy(), ebus:filter_id()) -> ok.
 remove_signal_handler(Pid, Ref) ->
     gen_server:cast(Pid, {remove_signal_handler, Ref}).
 
 -spec bus(ebus:proxy()) -> ebus:bus().
-bus(Proxy) ->
-    gen_server:call(Proxy, bus).
+bus(Pid) ->
+    gen_server:call(Pid, bus).
+
+-spec stop(ebus:proxy()) -> ok.
+stop(Pid) ->
+    gen_server:stop(Pid).
+
+-spec managed_objects(ebus:proxy()) -> {ok, term()} | {error, term()}.
+managed_objects(Pid) ->
+    managed_objects(Pid, "/").
+
+-spec managed_objects(ebus:proxy(), Path::string()) -> {ok, term()} | {error, term()}.
+managed_objects(Pid, Path) ->
+    call(Pid, Path, ?DBUS_OBJECT_MANAGER("GetManagedObjects"), [], []).
 
 %% gen_server
 %%
@@ -123,7 +140,7 @@ handle_call({send, Path, Member, Types, Args}, _From, State=#state{}) ->
     end;
 
 handle_call({add_signal_handler, Path, Member, Handler}, _From, State=#state{}) ->
-    {IFace, Name} = ebus_message:interface_member(Member),
+    {IFace, Name} = ebus_message:split_interface_member(Member),
     case IFace of
         undefined -> {reply, {error, missing_interface}, State};
         IFace ->
