@@ -118,19 +118,29 @@ infer_type_number(ErlNifEnv * env, ERL_NIF_TERM term, char * dest, size_t * size
 static int
 infer_type_list(ErlNifEnv * env, ERL_NIF_TERM term, char * dest, size_t * size_dest)
 {
-    char str[1];
-    if (enif_get_string(env, term, str, 1, ERL_NIF_LATIN1) != 0)
+    unsigned str_len;
+    enif_get_list_length(env, term, &str_len);
+
+    char str[str_len + 1];
+    if (enif_get_string(env, term, str, str_len, ERL_NIF_LATIN1) == 0)
     {
-        append_type_string(dest, DBUS_TYPE_STRING_AS_STRING, size_dest);
+        // Guess the signature based on the first element in the list
+        ERL_NIF_TERM head, tail;
+        enif_get_list_cell(env, term, &head, &tail);
+
+        append_type_string(dest, DBUS_TYPE_ARRAY_AS_STRING, size_dest);
+        return ebus_message_infer_type(env, head, dest, size_dest);
+    }
+
+    // Check if it's a specialized string type
+    if (dbus_validate_path(str, NULL))
+    {
+        append_type_string(dest, DBUS_TYPE_OBJECT_PATH_AS_STRING, size_dest);
         return TRUE;
     }
 
-    // Guess the signature based on the first element in the list
-    ERL_NIF_TERM head, tail;
-    enif_get_list_cell(env, term, &head, &tail);
-
-    append_type_string(dest, DBUS_TYPE_ARRAY_AS_STRING, size_dest);
-    return ebus_message_infer_type(env, head, dest, size_dest);
+    append_type_string(dest, DBUS_TYPE_STRING_AS_STRING, size_dest);
+    return TRUE;
 }
 
 static int
