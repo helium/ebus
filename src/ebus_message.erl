@@ -5,11 +5,11 @@
          new_signal/2, new_signal/3, append_args/3, args/1, to_map/1,
          type/1, serial/1, serial/2, reply_serial/1,
          destination/1, interface/1, path/1, member/1, error/1, infer_signature/1,
-         interface_member/1]).
+         interface_member/1, split_interface_member/1]).
 
 -spec new_signal(Path::string(), Member::string()) -> {ok, ebus:message()} | {error, term()}.
 new_signal(Path, Member) ->
-    {IFace, Name} = interface_member(Member),
+    {IFace, Name} = split_interface_member(Member),
     new_signal(Path, IFace, Name).
 
 -spec new_signal(Path::string(), IFace::string(), Name::string()) -> {ok, ebus:message()} | {error, term()}.
@@ -18,7 +18,7 @@ new_signal(Path, IFace, Name) ->
 
 -spec new_call(Dest::string(), Path::string(), Member::string()) -> {ok, ebus:message()} | {error, term()}.
 new_call(Dest, Path, Member) ->
-    {IFace, Name} = interface_member(Member),
+    {IFace, Name} = split_interface_member(Member),
     new_call(Dest, Path, IFace, Name).
 
 -spec new_call(Dest::string() | undefined, Path::string(), IFace::string() | undefined, Name::string())
@@ -117,11 +117,20 @@ to_map(Msg) ->
 infer_signature(Term) ->
     decode_signature(ebus_nif:message_infer_signature(Term)).
 
--spec interface_member(string()) -> {string() | undefined, string()}.
-interface_member(Member) ->
+-spec split_interface_member(string()) -> {string() | undefined, string()}.
+split_interface_member(Member) ->
     case string:split(Member, ".", trailing) of
         [Member] -> {undefined, Member};
         [Prefix, Suffix] -> {Prefix, Suffix}
+    end.
+
+-spec interface_member(ebus:message()) -> string().
+interface_member(Msg) ->
+    IFace = interface(Msg),
+    Member = member(Msg),
+    case IFace of
+        undefined -> Member;
+        IFace -> IFace ++ "." ++ Member
     end.
 
 %%
