@@ -122,7 +122,7 @@ infer_type_list(ErlNifEnv * env, ERL_NIF_TERM term, char * dest, size_t * size_d
     enif_get_list_length(env, term, &str_len);
 
     char str[str_len + 1];
-    if (enif_get_string(env, term, str, str_len, ERL_NIF_LATIN1) == 0)
+    if (enif_get_string(env, term, str, str_len + 1, ERL_NIF_LATIN1) == 0)
     {
         // Guess the signature based on the first element in the list
         ERL_NIF_TERM head, tail;
