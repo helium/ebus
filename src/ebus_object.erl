@@ -6,7 +6,8 @@
 
 -type action() ::
         {signal, Interface::string(), Member::string()} |
-        {signal, Interface::string(), Member::string(), Types::ebus:signature(), Args::[any()]} |
+        {signal, Path::ebus:object_path(), Interface::string(), Member::string(),
+         Types::ebus:signature(), Args::[any()]} |
         {reply, Msg::ebus:message(), Types::ebus:signature(), Args::[any()]} |
         {reply_error, Msg::ebus:message(), ErrorName::string(), ErrorMsg::string() | undefined} |
         {continue, Continue::any}.
@@ -171,9 +172,9 @@ handle_info_result({stop, Reason, ModuleState}, State) ->
                       {reply, any(), #state{}} |
                       {reply, any(), #state{}, {continue, any()}}.
 handle_action(Result, {signal, Interface, Member}, State=#state{}) ->
-    handle_action(Result, {signal, Interface, Member, [], []}, State);
-handle_action(Result, {signal, Interface, Member, Types, Args}, State=#state{}) ->
-    {ok, Msg}  = ebus_message:new_signal(State#state.path, Interface, Member),
+    handle_action(Result, {signal, State#state.path, Interface, Member, [], []}, State);
+handle_action(Result, {signal, Path, Interface, Member, Types, Args}, State=#state{}) ->
+    {ok, Msg}  = ebus_message:new_signal(Path, Interface, Member),
     ok = ebus_message:append_args(Msg, Types, Args),
     ok = ebus:send(State#state.bus, Msg),
     handle_result(Result, State);
