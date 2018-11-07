@@ -3,3 +3,6 @@
 
 -define(DBUS_PROPETIES_INTERFACE, "org.freedesktop.DBus.Properties").
 -define(DBUS_PROPERTIES(M), ?DBUS_PROPETIES_INTERFACE ++ "." ++ M).
+
+-define(DBUS_ERROR_FAILED, "org.freedesktop.DBus.Error.Failed").
+-define(DBUS_ERROR_NOT_SUPPORTED, "org.freedesktop.DBus.Error.NotSupported").
