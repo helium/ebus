@@ -58,7 +58,7 @@ new_reply_error(Msg, ErrorName, ErrorMsg) ->
     ebus_nif:message_new_reply_error(Msg, ErrorName, MaybeStr(ErrorMsg)).
 
 -spec append_args(ebus:message(), ebus:signature(), [any()]) -> ok | {error, term()}.
-append_args(Msg, Signature, Args) when length(Signature) == length(Args) ->
+append_args(Msg, Signature, Args) ->
     ebus_nif:message_append_args(Msg, lists:flatten(encode_signature(Signature)), Args).
 
 -spec args(ebus:message()) -> {ok, [any()]} | {error, string()}.

@@ -215,8 +215,11 @@ arg_array_bin_test(Config) ->
 arg_array_string_test(Config) ->
     M = proplists:get_value(message, Config),
 
-    ArrArgs =  [["hello", "world"]],
-    ?assertEqual(ok, ebus_message:append_args(M, [{array, string}], ArrArgs)),
-    ?assertEqual({ok, ArrArgs}, ebus_message:args(M)),
+    Args =  ["hello", "world"],
+    ?assertEqual(ok, ebus_message:append_args(M, [{array, string}], [Args])),
+    ?assertEqual({ok, [Args]}, ebus_message:args(M)),
+
+    ?assertEqual(ok, ebus_message:append_args(M, [{array, string}], [[]])),
+    ?assertEqual({ok, [Args, []]}, ebus_message:args(M)),
 
     ok.

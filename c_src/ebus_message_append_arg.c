@@ -23,7 +23,8 @@ iter_append_list(ErlNifEnv *               env,
     char *            sig = NULL;
     int               ret = FALSE;
 
-    if (!enif_is_list(env, term_list))
+    unsigned list_len;
+    if (!enif_get_list_length(env, term_list, &list_len))
     {
         goto out;
     }
@@ -40,17 +41,24 @@ iter_append_list(ErlNifEnv *               env,
         goto out;
     }
 
-    ERL_NIF_TERM term;
-    while (enif_get_list_cell(env, term_list, &term, &term_list))
+    if (list_len == 0)
     {
-        // reset the signature iterator and append the term. We ignore
-        // the "more" result since list entries are of a single
-        // complete type.
-        dbus_signature_iter_recurse(sig_iter, &sub_sig_iter);
-        ret = ebus_message_append_arg(env, term, &sub_appender, &sub_sig_iter, NULL);
-        if (!ret)
+        ret = TRUE;
+    }
+    else
+    {
+        ERL_NIF_TERM term;
+        while (enif_get_list_cell(env, term_list, &term, &term_list))
         {
-            break;
+            // reset the signature iterator and append the term. We ignore
+            // the "more" result since list entries are of a single
+            // complete type.
+            dbus_signature_iter_recurse(sig_iter, &sub_sig_iter);
+            ret = ebus_message_append_arg(env, term, &sub_appender, &sub_sig_iter, NULL);
+            if (!ret)
+            {
+                break;
+            }
         }
     }
 
