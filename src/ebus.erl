@@ -48,7 +48,7 @@
                     | variant
                     | {array, value_type()}
                     | {struct, [value_type()]}
-                    | {dict, KeyType::value_type(), ValueType::value_type}.
+                    | {dict, KeyType::value_type(), ValueType::value_type()}.
 -type object_path() :: string().
 -type bus() :: pid().
 -type proxy() :: pid().
