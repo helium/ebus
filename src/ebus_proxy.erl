@@ -153,7 +153,7 @@ handle_call({add_signal_handler, Path, Member, Handler, Info}, _From, State=#sta
         {ok, SignalID, NewState} ->
             {reply, {ok, SignalID}, NewState};
         {error, Error} ->
-            {reply, Error, State}
+            {reply, {error, Error}, State}
     end;
 
 handle_call(bus, _From, State=#state{}) ->
@@ -165,7 +165,7 @@ handle_call(Msg, _From, State=#state{}) ->
 
 
 handle_cast({remove_signal_handler, SignalID, Handler, Info}, State=#state{}) ->
-    {noreply, signal_handler_remove(SignalID, Handler, State, Info)};
+    {noreply, signal_handler_remove(SignalID, Handler, Info, State)};
 
 handle_cast(Msg, State=#state{}) ->
     lager:warning("Unhandled cast ~p", [Msg]),
