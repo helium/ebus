@@ -7,7 +7,7 @@
 %% API
 -export([call/2, call/3, call/5, call/6,
         bus/1, send/2, send/3, send/5,
-        add_signal_handler/3, add_signal_handler/4, remove_signal_handler/2,
+        add_signal_handler/4, add_signal_handler/5, remove_signal_handler/4,
         stop/1]).
 -export([managed_objects/1, managed_objects/2]).
 
@@ -15,10 +15,18 @@
 -export([start/3, start_link/3, init/1,
         handle_call/3, handle_cast/2, handle_info/2]).
 
+-record(handler_entry, {
+                         path :: ebus:object_path(),
+                         member :: string(),
+                         rule :: ebus:rule(),
+                         handlers :: [{HandlerPid::pid(), HandlerInfo::any()}]
+                        }).
+
 -record(state, {
                 bus :: pid(),
                 dest :: string(),
                 calls=#{} :: #{Serial::non_neg_integer() => From::term()},
+                signal_handlers=#{} :: #{ebus:filter_id() => #handler_entry{}},
                 active_filters=#{} :: #{ebus:filter_id() => Filter::ebus:rule()}
                }).
 
@@ -60,19 +68,19 @@ send(Pid, Path, Member) ->
 send(Pid, Path, Member, Types, Args) ->
     gen_server:call(Pid, {send, Path, Member, Types, Args}, infinity).
 
--spec add_signal_handler(ebus:proxy(), Member::string(), Handler::pid())
+-spec add_signal_handler(ebus:proxy(), Member::string(), Handler::pid(), Info::any())
                         -> {ok, ebus:filter_id()} | {error, term()}.
-add_signal_handler(Pid, Member, Handler) ->
-    add_signal_handler(Pid, "/", Member, Handler).
+add_signal_handler(Pid, Member, Handler, Info) ->
+    add_signal_handler(Pid, "/", Member, Handler, Info).
 
--spec add_signal_handler(ebus:proxy(), Path::string(), Member::string(), Handler::pid())
+-spec add_signal_handler(ebus:proxy(), Path::string(), Member::string(), Handler::pid(), Info::any())
                         -> {ok, ebus:filter_id()} | {error, term()}.
-add_signal_handler(Pid, Path, Member, Handler) ->
-    gen_server:call(Pid, {add_signal_handler, Path, Member, Handler}).
+add_signal_handler(Pid, Path, Member, Handler, Info) ->
+    gen_server:call(Pid, {add_signal_handler, Path, Member, Handler, Info}).
 
--spec remove_signal_handler(ebus:proxy(), ebus:filter_id()) -> ok.
-remove_signal_handler(Pid, Ref) ->
-    gen_server:cast(Pid, {remove_signal_handler, Ref}).
+-spec remove_signal_handler(ebus:proxy(), SignalID::ebus:filter_id(), Handler::pid(), Info::any()) -> ok.
+remove_signal_handler(Pid, Ref, Handler, Info) ->
+    gen_server:cast(Pid, {remove_signal_handler, Ref, Handler, Info}).
 
 -spec bus(ebus:proxy()) -> ebus:bus().
 bus(Pid) ->
@@ -139,24 +147,13 @@ handle_call({send, Path, Member, Types, Args}, _From, State=#state{}) ->
             {reply, {error, Reason}, State}
     end;
 
-handle_call({add_signal_handler, Path, Member, Handler}, _From, State=#state{}) ->
+handle_call({add_signal_handler, Path, Member, Handler, Info}, _From, State=#state{}) ->
     {IFace, Name} = ebus_message:split_interface_member(Member),
-    case IFace of
-        undefined -> {reply, {error, missing_interface}, State};
-        IFace ->
-            Filter = #{ path => Path,
-                        type => signal,
-                        member => Name,
-                        interface => IFace
-                      },
-            ok = ebus:add_match(State#state.bus, Filter),
-            case ebus:add_filter(State#state.bus, Handler, Filter) of
-                {ok, FilterID} ->
-                    NewFilters = maps:put(FilterID, Filter, State#state.active_filters),
-                    {reply, {ok, FilterID}, State#state{active_filters=NewFilters}};
-                {error, Error} ->
-                    {reply, {error, Error}, State}
-            end
+    case signal_handler_add(Path, Member, {IFace, Name}, Handler, Info, State) of
+        {ok, SignalID, NewState} ->
+            {reply, {ok, SignalID}, NewState};
+        {error, Error} ->
+            {reply, Error, State}
     end;
 
 handle_call(bus, _From, State=#state{}) ->
@@ -167,15 +164,8 @@ handle_call(Msg, _From, State=#state{}) ->
     {noreply, State}.
 
 
-handle_cast({remove_signal_handler, FilterID}, State=#state{}) ->
-    case maps:take(FilterID, State#state.active_filters) of
-        {Filter, NewFilters} ->
-            ebus:remove_match(State#state.bus, Filter),
-            ebus:remove_filter(State#state.bus, FilterID),
-            {noreply, State#state{active_filters=NewFilters}};
-        error ->
-            {noreply, State}
-    end;
+handle_cast({remove_signal_handler, SignalID, Handler, Info}, State=#state{}) ->
+    {noreply, signal_handler_remove(SignalID, Handler, State, Info)};
 
 handle_cast(Msg, State=#state{}) ->
     lager:warning("Unhandled cast ~p", [Msg]),
@@ -198,6 +188,81 @@ handle_info({handle_reply, Msg}, State=#state{}) ->
             {noreply, State}
     end;
 
+handle_info({filter_match, SignalID, Msg}, State=#state{signal_handlers=SigHandlers}) ->
+    case maps:get(SignalID, SigHandlers, false) of
+        false -> {noreply, State};
+        #handler_entry{handlers=Handlers} ->
+            lists:foreach(fun({Handler, Info}) ->
+                                  Handler ! {ebus_signal, SignalID, Msg, Info}
+                          end, Handlers),
+            {noreply, State}
+    end;
+
 handle_info(Msg, State=#state{}) ->
     lager:warning("Unhandled info ~p", [Msg]),
     {noreply, State}.
+
+
+%%
+%% Private
+%%
+
+signal_group_id(Path, Member) ->
+    {ebus_signal, Path, Member}.
+
+-spec signal_handler_add(ebus:object_path(), string(), {ebus:interface(), string()}, pid(), any(), #state{})
+                        -> {ok, ebus:filter_id(), #state{}} | {error, term()}.
+signal_handler_add(_Path, _Member, {undefined, _}, _Handler, _Info, _State=#state{}) ->
+    {error, no_interface};
+signal_handler_add(Path, Member, {IFace, Name}, Handler, Info, State=#state{signal_handlers=SigHandlers}) ->
+    case maps:to_list(maps:filter(fun(_SignalID, #handler_entry{path=P, member=M}) ->
+                                          P == Path andalso M == Member
+                                  end, SigHandlers)) of
+        [] ->
+            Rule = #{ path => Path,
+                      type => signal,
+                      member => Name,
+                      interface => IFace
+                    },
+            ok = ebus:add_match(State#state.bus, Rule),
+            case ebus:add_filter(State#state.bus, self(), Rule) of
+                {ok, SignalID} ->
+                    GroupID = signal_group_id(Path, Member),
+                    pg2:create(GroupID),
+                    pg2:join(GroupID, Handler),
+                    NewSigHandlers = maps:put(SignalID,
+                                              #handler_entry{path=Path, member=Member, rule=Rule,
+                                                             handlers=[{Handler, Info}]},
+                                              SigHandlers),
+                    {ok, SignalID, State#state{signal_handlers=NewSigHandlers}};
+                {error, Error} ->
+                    {error, Error}
+            end;
+        [{SignalID, Entry=#handler_entry{handlers=Handlers}}] ->
+            pg2:join(signal_group_id(Path, Member), Handler),
+            NewSigHandlers = maps:put(SignalID,
+                                      Entry#handler_entry{handlers=[{Handler, Info} | Handlers]},
+                                      SigHandlers),
+            {ok, SignalID, State#state{signal_handlers=NewSigHandlers}}
+    end.
+
+-spec signal_handler_remove(ebus:filter_id(), pid(), any(), #state{}) -> #state{}.
+signal_handler_remove(SignalID, Handler, Info, State=#state{signal_handlers=SigHandlers}) ->
+    case maps:get(SignalID, SigHandlers, false) of
+        false -> State;
+        Entry=#handler_entry{path=Path, member=Member, rule=Rule, handlers=Handlers} ->
+            case lists:delete({Handler, Info}, Handlers) of
+                [] ->
+                    ebus:remove_match(State#state.bus, Rule),
+                    ebus:remove_filter(State#state.bus, SignalID),
+                    pg2:delete(signal_group_id(Path, Member)),
+                    NewSigHandlers = maps:remove(SignalID, SigHandlers),
+                    State#state{signal_handlers=NewSigHandlers};
+                NewHandlers ->
+                    pg2:leave(signal_group_id(Path, Member), Handler),
+                    NewSigHandlers = maps:put(SignalID,
+                                              Entry#handler_entry{handlers=NewHandlers},
+                                              SigHandlers),
+                    State#state{signal_handlers=NewSigHandlers}
+            end
+    end.

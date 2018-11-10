@@ -70,3 +70,6 @@ call_test(Config) ->
     meck:unload(call_test),
 
     ok.
+
+signal_test(Config) ->
+    B = ?config(bus, Config),
