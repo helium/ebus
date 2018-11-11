@@ -36,21 +36,50 @@
 %%
 
 
+%% @doc Call a given interface/member on the object at the root path
+%% "/" of the destination the proxy was started with.
+%%
+%% @see call/6 for more details
 -spec call(ebus:proxy(), string()) -> {ok, Response::term()} | {error, term()}.
 call(Pid, Member) ->
     call(Pid, "/", Member).
 
+%% @doc Call a given interface/member on the object at the given path
+%%
+%% @see call/6 for more details
 call(Pid, Path, Member) ->
     call(Pid, Path, Member, [], []).
 
+
+%% @doc Call a given interface/member on the object at the given path
+%%
+%% @see call/6 for more details
 -spec call(ebus:proxy(), string(), string(), ebus:signature(), [any()])
           -> {ok, Response::term()} | {error, term()}.
 call(Pid, Path, Member, Types, Args) ->
     %% Using the dbus recommended `-1` means a 25 second (!) timeout
     call(Pid, Path, Member, Types, Args, 5000).
 
+%% @doc Call the given interface/member on the object at the given
+%% path passing in arguments that are typed using the given types. The
+%% given timeout indicates how long to wait for a reults.
+%%
+%% To make it more convenient to call a member on specific interface,
+%% the member argumen can include both the interface and the
+%% member. For example, "net.connman.Manager.GetServices" can be used
+%% to call the "GetServices" member on the "net.connman.Manager"
+%% interface of the object at the given path.
+%%
+%% Arguments that are passed in have to have their types
+%% specified. See the ebus:signature type on all supported types. For
+%% example to call `net.connman.Manager.SetProperty', which takes a
+%% string and a variant, pass in types: `[string, variant]' and
+%% arguments: `["OfflineMode", true]'.
+%%
+%% Returns the response from the call. Note that a response from a
+%% call is always a list even if only one value is returned.
 -spec call(ebus:proxy(), Path::string(), Member::string(),
-           Sig::ebus:signature(), Args::[any()],
+           Types::ebus:signature(), Args::[any()],
            Timeout::integer()) -> {ok, Response::term()} | {error, term()}.
 call(Pid, Path, Member, Types, Args, Timeout) ->
     gen_server:call(Pid, {call, Path, Member, Types, Args, Timeout}, infinity).
@@ -68,20 +97,33 @@ send(Pid, Path, Member) ->
 send(Pid, Path, Member, Types, Args) ->
     gen_server:call(Pid, {send, Path, Member, Types, Args}, infinity).
 
+%% @doc Add a signal handler for the given Member and default root
+%% path "/". Equivalent to calling add_signal_handler/5.
 -spec add_signal_handler(ebus:proxy(), Member::string(), Handler::pid(), Info::any())
                         -> {ok, ebus:filter_id()} | {error, term()}.
 add_signal_handler(Pid, Member, Handler, Info) ->
     add_signal_handler(Pid, "/", Member, Handler, Info).
 
+%% @doc Add a signal handler for the given path, interface/member. The
+%% handler is a pid which will be sent `{ebus_signal, Info,
+%% SignalID::ebus:filter_id(), Message::ebus:message()' with the given
+%% info when the handler was added and the signal id returned from
+%% this function. The proxy will manage the underlying edbus filter
+%% and match addition.
 -spec add_signal_handler(ebus:proxy(), Path::string(), Member::string(), Handler::pid(), Info::any())
                         -> {ok, ebus:filter_id()} | {error, term()}.
 add_signal_handler(Pid, Path, Member, Handler, Info) ->
     gen_server:call(Pid, {add_signal_handler, Path, Member, Handler, Info}).
 
+%% %doc Remove a signal handler with the gien signal id, handler pid
+%% and info. Duplicate handler/info combinations are allowed, but
+%% calling remove_signal_handler will only remove _one_ of them for
+%% the givne signal.
 -spec remove_signal_handler(ebus:proxy(), SignalID::ebus:filter_id(), Handler::pid(), Info::any()) -> ok.
 remove_signal_handler(Pid, Ref, Handler, Info) ->
     gen_server:cast(Pid, {remove_signal_handler, Ref, Handler, Info}).
 
+%% @doc Returns the bus the proxy uses to communicate over.
 -spec bus(ebus:proxy()) -> ebus:bus().
 bus(Pid) ->
     gen_server:call(Pid, bus).
@@ -193,7 +235,7 @@ handle_info({filter_match, SignalID, Msg}, State=#state{signal_handlers=SigHandl
         false -> {noreply, State};
         #handler_entry{handlers=Handlers} ->
             lists:foreach(fun({Handler, Info}) ->
-                                  Handler ! {ebus_signal, SignalID, Msg, Info}
+                                  Handler ! {ebus_signal, Info, SignalID, Msg}
                           end, Handlers),
             {noreply, State}
     end;

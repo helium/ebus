@@ -102,14 +102,14 @@ signal_test(Config) ->
     ok = ebus:send(B, Signal),
     %% Make sure we receive both signals
     receive
-        {ebus_signal, SignalID, Msg, signal_info} ->
+        {ebus_signal, signal_info, SignalID, Msg} ->
             ?assertEqual("Signal", ebus_message:member(Msg)),
             ?assertEqual("/", ebus_message:path(Msg))
     after 5000 -> erlang:exit(timeout_signal)
     end,
 
     receive
-        {ebus_signal, SignalID2, _, signal_info_2} -> ok
+        {ebus_signal, signal_info_2, SignalID2, _} -> ok
     after 5000 -> erlang:exit(timeout_signal_2)
     end,
 
@@ -120,14 +120,14 @@ signal_test(Config) ->
     %% Ensure that we don't receive it
     receive
         %% We should not receive this after removing the AddSignalID
-        {ebus_signal, SignalID, _, signal_info} ->
+        {ebus_signal, signal_info, SignalID, _} ->
             ?assert(received_post_remove_signal)
     after 750 -> ok
     end,
 
     %% But that we do receive the seond handler
     receive
-        {ebus_signal, SignalID2, _, signal_info_2} -> ok
+        {ebus_signal, signal_info_2, SignalID2, _} -> ok
     after 5000 -> erlang:exit(timeout_post_remove_signal_2)
     end,
 
@@ -136,7 +136,7 @@ signal_test(Config) ->
     ok = ebus:send(B, Signal),
     %% Ensure that we don't receive the second handler
     receive
-        {ebus_signal, SignalID2, _, signal_info_2} ->
+        {ebus_signal, signal_info_2, SignalID2, _} ->
             ?assert(false, received_post_remove_signal_2)
     after 750 -> ok
     end,
