@@ -81,7 +81,7 @@ serial(Msg, Value) ->
 reply_serial(Msg) ->
     ebus_nif:message_get_reply_serial(Msg).
 
--spec interface(ebus:message()) -> string() | undefined.
+-spec interface(ebus:message()) ->ebus:interface().
 interface(Msg) ->
     ebus_nif:message_get_interface(Msg).
 
@@ -117,7 +117,7 @@ to_map(Msg) ->
 infer_signature(Term) ->
     decode_signature(ebus_nif:message_infer_signature(Term)).
 
--spec split_interface_member(string()) -> {string() | undefined, string()}.
+-spec split_interface_member(string()) -> {ebus:interface(), string()}.
 split_interface_member(Member) ->
     case string:split(Member, ".", trailing) of
         [Member] -> {undefined, Member};

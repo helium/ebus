@@ -50,10 +50,11 @@
                     | {struct, [value_type()]}
                     | {dict, KeyType::value_type(), ValueType::value_type()}.
 -type object_path() :: string().
+-type interface() :: string() | undefined.
 -type bus() :: pid().
 -type proxy() :: pid().
 -export_type([message/0, message_type/0, signature/0, value_type/0,
-              object_path/0, proxy/0, bus/0]).
+              object_path/0, interface/0, proxy/0, bus/0]).
 
 -type request_name_opts() :: [request_name_opt()].
 -type request_name_opt() :: {replace_existing, boolean()}
