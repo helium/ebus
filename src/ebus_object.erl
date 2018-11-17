@@ -67,7 +67,7 @@ start(Bus, Path, Module, Args, Options) ->
     gen_server:start(?MODULE, [Bus, Path, Module, Args], Options).
 
 stop(Pid, Reason) ->
-    gen_server:cast(Pid, {stop, Reason}).
+    gen_server:stop(Pid, Reason, infinity).
 
 start_link(Bus, Path, Module, Args, Options) ->
     gen_server:start_link(?MODULE, [Bus, Path, Module, Args], Options).

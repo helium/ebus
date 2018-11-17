@@ -6,13 +6,14 @@
 -export([all/0,
          init_per_suite/1, end_per_suite/1,
          init_per_testcase/2, end_per_testcase/2]).
--export([call_test/1, cast_test/1, info_test/1, message_test/1]).
+-export([call_test/1, cast_test/1, info_test/1, message_test/1, stop_test/1]).
 
 all() ->
     [ call_test,
       cast_test,
       info_test,
-      message_test
+      message_test,
+      stop_test
     ].
 
 init_per_suite(Config) ->
@@ -302,5 +303,33 @@ message_test(Config) ->
 
     meck:validate(message_test),
     meck:unload(message_test),
+
+    ok.
+
+stop_test(Config) ->
+    B = ?config(bus, Config),
+
+    meck:new(stop_test, [non_strict]),
+    meck:expect(stop_test, init,
+                fun([init_arg]) ->
+                        {ok, init_state};
+                   (A) ->
+                        erlang:error({bad_init, A})
+                end),
+
+    meck:expect(stop_test, terminate,
+                fun(normal, _State) -> ok;
+                   (Reason, _State) ->
+                        erlang:error({invalid_exit, Reason})
+                end),
+
+
+    {ok, O} = ebus_object:start(B, "/", stop_test, [init_arg], []),
+
+    ebus_object:stop(O, normal),
+    meck:wait(stop_test, terminate, '_', 1000),
+
+    meck:validate(stop_test),
+    meck:unload(stop_test),
 
     ok.
