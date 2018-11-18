@@ -261,7 +261,7 @@ handle_call({register_object_path, Path, ObjectPid}, _From, State=#state{connect
         ok ->
             Value = case maps:get(ObjectPid, State#state.object_monitors, false) of
                         false -> {erlang:monitor(process, ObjectPid), [Path]};
-                        {Monitor, Paths} -> {Monitor, [Path, Paths]}
+                        {Monitor, Paths} -> {Monitor, [Path | Paths]}
                     end,
             NewMonitors = maps:put(ObjectPid, Value, State#state.object_monitors),
             {reply, ok, State#state{object_monitors=NewMonitors}}
