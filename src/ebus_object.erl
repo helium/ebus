@@ -147,7 +147,7 @@ handle_continue(Msg, State=#state{module=Module, state=ModuleState0}) ->
     end.
 
 terminate(Reason, State=#state{module=Module, state=ModuleState}) ->
-    ebus:unregister_object_path(State#state.bus, State#state.path),
+    ebus:unregister_object_path(State#state.bus, self()),
     case erlang:function_exported(Module, terminate, 2) of
         true -> Module:terminate(Reason, ModuleState);
         false -> ok

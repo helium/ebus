@@ -71,7 +71,7 @@
 -record(state, {
                 connection :: connection(),
                 timeouts=#{} :: #{Timeout::reference() => Timer::reference()},
-                object_monitors=[] :: [{Object::pid(), Path::string(), Monitor::reference()}],
+                object_monitors=#{} :: #{Object::pid() => {Monitor::reference(), Path::[string()]}},
                 filters=[] :: [{reference(), rule()}],
                 filter_targets=#{} :: #{reference() => pid()},
                 filter_next_id=0 :: non_neg_integer(),
@@ -186,9 +186,9 @@ send(Pid, Msg) ->
 register_object_path(Pid, Path, ObjectPid) ->
     gen_server:call(Pid, {register_object_path, Path, ObjectPid}).
 
--spec unregister_object_path(pid(), string()) -> ok | {error, term()}.
-unregister_object_path(Pid, Path) ->
-    gen_server:call(Pid, {unregister_object_path, Path}).
+-spec unregister_object_path(pid(), pid()) -> ok.
+unregister_object_path(Pid, ObjectPid) when is_pid(ObjectPid) ->
+    gen_server:cast(Pid, {unregister_object_path, ObjectPid}).
 
 %% gen_server
 %%
@@ -203,7 +203,7 @@ start_link(Type) ->
     end.
 
 init([IntType]) ->
-    erlang:process_flag(trap_exit, true),
+    %% erlang:process_flag(trap_exit, true),
     {ok, Conn} = ebus_nif:connection_get(IntType, self()),
     {ok, #state{connection=Conn, wakeup_timer=new_wakeup_timer()}}.
 
@@ -259,25 +259,21 @@ handle_call({register_object_path, Path, ObjectPid}, _From, State=#state{connect
         {error, Reason} ->
             {reply, {error, Reason}, State};
         ok ->
-            NewMonitors = lists:keystore(ObjectPid, 1, State#state.object_monitors,
-                                         {ObjectPid, Path, erlang:monitor(process, ObjectPid)}),
+            Value = case maps:get(ObjectPid, State#state.object_monitors, false) of
+                        false -> {erlang:monitor(process, ObjectPid), [Path]};
+                        {Monitor, Paths} -> {Monitor, [Path, Paths]}
+                    end,
+            NewMonitors = maps:put(ObjectPid, Value, State#state.object_monitors),
             {reply, ok, State#state{object_monitors=NewMonitors}}
         end;
-handle_call({unregister_object_path, Path}, _From, State=#state{connection=Conn}) ->
-    case lists:keytake(Path, 2, State#state.object_monitors) of
-        false ->
-            {reply, {error, not_found}, State};
-        {value, {_ObjectPid, Path, Monitor}, NewMonitors} ->
-            erlang:demonitor(Monitor),
-            {reply, ebus_nif:connection_unregister_object_path(Conn, Path),
-             State#state{object_monitors=NewMonitors}}
-    end;
 
 handle_call(Msg, _From, State=#state{}) ->
     lager:warning("Unhandled call ~p", [Msg]),
     {noreply, State}.
 
 
+handle_cast({unregister_object_path, ObjectPid}, State=#state{}) ->
+    {noreply, unregister_object(ObjectPid, State)};
 handle_cast({remove_filter, Ref},
             State=#state{connection=Conn, filters=Filters, filter_targets=Targets}) ->
     NewFilters = lists:keydelete(Ref, 1, Filters),
@@ -355,14 +351,8 @@ handle_info({timeout, Key, Ref}, State=#state{timeouts=Timeouts, connection=Conn
             self() ! {dispatch_status, ebus_nif:connection_dispatch(Conn)},
             {noreply, State#state{timeouts=NewTimeouts}}
     end;
-handle_info({'DOWN', MonitorRef, process, Pid, _}, State=#state{connection=Conn}) ->
-    case lists:keytake(Pid, 1, State#state.object_monitors) of
-        false ->
-            {noreply, State};
-        {value, {Pid, Path, MonitorRef}, NewMonitors} ->
-            ebus_nif:connection_unregister_object_path(Conn, Path),
-            {noreply, State#state{object_monitors=NewMonitors}}
-    end;
+handle_info({'DOWN', _, process, Pid, _}, State=#state{}) ->
+    {noreply, unregister_object(Pid, State)};
 
 
 handle_info(Msg, State=#state{}) ->
@@ -386,4 +376,16 @@ bus_type(Type) ->
         system -> ?SYSTEM;
         starter -> ?STARTER;
         _ -> error(badarg)
+    end.
+
+-spec unregister_object(pid(), #state{}) -> #state{}.
+unregister_object(Pid, State=#state{connection=Conn}) ->
+    case maps:take(Pid, State#state.object_monitors) of
+        error -> State;
+        {{Monitor, Paths}, NewMonitors} ->
+            erlang:demonitor(Monitor),
+            lists:foreach(fun(Path) ->
+                                  ebus_nif:connection_unregister_object_path(Conn, Path)
+                          end, Paths),
+            State#state{object_monitors=NewMonitors}
     end.

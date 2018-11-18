@@ -72,7 +72,7 @@ call_test(Config) ->
                        {noreply, State}
                end),
     meck:expect(call_test, terminate,
-                fun(stop_reason, _State) -> ok end),
+                fun(normal, _State) -> ok end),
 
     Path = "/com/helium/test/Call",
     {ok, O} = ebus_object:start(B, Path, call_test, [init_arg], []),
@@ -107,7 +107,7 @@ call_test(Config) ->
     ebus:remove_filter(B, F),
 
     %% Check stop
-    ?assertEqual(test_stop, gen_server:call(O, {stop, stop_reason, test_stop})),
+    ?assertEqual(test_stop, gen_server:call(O, {stop, normal, test_stop})),
 
     meck:validate(call_test),
     meck:unload(call_test),
@@ -147,7 +147,7 @@ cast_test(Config) ->
                        {noreply, State}
                end),
     meck:expect(cast_test, terminate,
-                fun(stop_reason, _State) -> ok end),
+                fun(normal, _State) -> ok end),
 
     Path = "/com/helium/test/Cast",
     {ok, O} = ebus_object:start(B, Path, cast_test, [init_arg], []),
@@ -177,8 +177,8 @@ cast_test(Config) ->
 
     %% Check stop. Wait for the handle_cast call to allow the coverage
     %% to see the actual stop response from the callback.
-    gen_server:cast(O, {stop, stop_reason}),
-    meck:wait(cast_test, handle_cast, [{stop, stop_reason}, '_'], 1000),
+    gen_server:cast(O, {stop, normal}),
+    meck:wait(cast_test, handle_cast, [{stop, normal}, '_'], 1000),
 
     meck:validate(cast_test),
     meck:unload(cast_test),
@@ -214,7 +214,7 @@ info_test(Config) ->
                         {noreply, State}
                 end),
     meck:expect(info_test, terminate,
-                fun(stop_reason, _State) -> ok end),
+                fun(normal, _State) -> ok end),
 
     Path = "/com/helium/test/Info",
     {ok, O} = ebus_object:start(B, Path, info_test, [init_arg], []),
@@ -240,7 +240,7 @@ info_test(Config) ->
     ebus:remove_filter(B, F),
 
     %% Check stop
-    erlang:send(O, {stop, stop_reason}),
+    erlang:send(O, {stop, normal}),
     meck:wait(info_test, handle_info, [{stop, '_'}, '_'], 1000),
     meck:wait(info_test, terminate, '_', 1000),
 
@@ -324,7 +324,8 @@ stop_test(Config) ->
                 end),
 
 
-    {ok, O} = ebus_object:start(B, "/", stop_test, [init_arg], []),
+    Path = "/com/helium/test/Stop",
+    {ok, O} = ebus_object:start(B, Path, stop_test, [init_arg], []),
 
     ebus_object:stop(O, normal),
     meck:wait(stop_test, terminate, '_', 1000),
