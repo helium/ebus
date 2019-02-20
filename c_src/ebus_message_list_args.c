@@ -183,8 +183,8 @@ ebus_message_get_arg(ErlNifEnv * env, DBusMessageIter * iter, ERL_NIF_TERM * des
         *dest = enif_make_int64(env, v.i64);
         return TRUE;
     case DBUS_TYPE_UINT64:
-        dbus_message_iter_get_basic(iter, &v.i64);
-        *dest = enif_make_uint64(env, v.i64);
+        dbus_message_iter_get_basic(iter, &v.u64);
+        *dest = enif_make_uint64(env, v.u64);
         return TRUE;
     case DBUS_TYPE_STRING:
     case DBUS_TYPE_SIGNATURE:
