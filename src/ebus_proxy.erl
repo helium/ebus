@@ -6,9 +6,10 @@
 
 %% API
 -export([call/2, call/3, call/5, call/6,
-        bus/1, send/2, send/3, send/5,
-        add_signal_handler/4, add_signal_handler/5, remove_signal_handler/4,
-        stop/1]).
+         call_async/3, call_async/4, call_async/6, call_async/7,
+         bus/1, send/2, send/3, send/5,
+         add_signal_handler/4, add_signal_handler/5, remove_signal_handler/4,
+         stop/1]).
 -export([managed_objects/1, managed_objects/2]).
 
 %% gen_server
@@ -39,21 +40,22 @@
 %% @doc Call a given interface/member on the object at the root path
 %% "/" of the destination the proxy was started with.
 %%
-%% @see call/6 for more details
+%% @see call/6
 -spec call(ebus:proxy(), string()) -> {ok, Response::term()} | {error, term()}.
 call(Pid, Member) ->
     call(Pid, "/", Member).
 
 %% @doc Call a given interface/member on the object at the given path
 %%
-%% @see call/6 for more details
+%% @see call/6
 call(Pid, Path, Member) ->
     call(Pid, Path, Member, [], []).
 
 
 %% @doc Call a given interface/member on the object at the given path
+%% with the given argument types and arguments.
 %%
-%% @see call/6 for more details
+%% @see call/6
 -spec call(ebus:proxy(), string(), string(), ebus:signature(), [any()])
           -> {ok, Response::term()} | {error, term()}.
 call(Pid, Path, Member, Types, Args) ->
@@ -83,6 +85,69 @@ call(Pid, Path, Member, Types, Args) ->
            Timeout::integer()) -> {ok, Response::term()} | {error, term()}.
 call(Pid, Path, Member, Types, Args, Timeout) ->
     gen_server:call(Pid, {call, Path, Member, Types, Args, Timeout}, infinity).
+
+
+%% @doc Asynchronously call a given interface/member on the object at the root path
+%% "/" of the destination the proxy was started with.
+%%
+%% @see call_async/7
+-spec call_async(ebus:proxy(), From::{Target::pid(), Key::any()},
+                 Member::string()) -> ok.
+call_async(Pid, From, Member) ->
+    %% Using the dbus recommended `-1` means a 25 second (!) timeout
+    call_async(Pid, From, "/", Member).
+
+
+%% @doc Asynchronously call a given interface/member on the object at
+%% the given path
+%%
+%% @see call_async/7
+-spec call_async(ebus:proxy(), {Target::pid(), Key::any()},
+                 Path::string(), Member::string()) -> ok.
+call_async(Pid, From, Path, Member) ->
+    %% Using the dbus recommended `-1` means a 25 second (!) timeout
+    call_async(Pid, From, Path, Member, [], []).
+
+%% @doc Asynchronously call a given interface/member on the object at
+%% the given path with the given argument types and arguments.
+%%
+%% @see call_async/7
+-spec call_async(ebus:proxy(), From::{Target::pid(), Key::any()},
+                 Path::string(), Member::string(),
+                 Types::ebus:signature(), Args::[any()]) -> ok.
+call_async(Pid, From, Path, Member, Types, Args) ->
+    %% Using the dbus recommended `-1` means a 25 second (!) timeout
+    call_async(Pid, From, Path, Member, Types, Args, 5000).
+
+
+%% @doc Asynchronously call the given interface/member on the object
+%% at the given path passing in arguments that are typed using the
+%% given types. The given timeout indicates how long to wait for a
+%% reults.
+%%
+%% To make it more convenient to call a member on specific interface,
+%% the member argumen can include both the interface and the
+%% member. For example, "net.connman.Manager.GetServices" can be used
+%% to call the "GetServices" member on the "net.connman.Manager"
+%% interface of the object at the given path.
+%%
+%% Arguments that are passed in have to have their types
+%% specified. See the ebus:signature type on all supported types. For
+%% example to call `net.connman.Manager.SetProperty', which takes a
+%% string and a variant, pass in types: `[string, variant]' and
+%% arguments: `["OfflineMode", true]'.
+%%
+%% The response of the call is sent as a message to the `Target' pid
+%% in the `From' tuple. For example if that `{Pid, call_result}' is
+%% passed the `Pid` will be sent a `{call_result, {ok, [Result]}}' or
+%% `{call_result, {error, Error}}'.  Note that a response from a call
+%% is always a list even if only one value is returned.
+-spec call_async(ebus:proxy(), {Target::pid(), Key::any()},
+                 Path::string(), Member::string(),
+                 Types::ebus:signature(), Args::[any()],
+                 Timeout::integer()) -> ok.
+call_async(Pid, From, Path, Member, Types, Args, Timeout) ->
+    gen_server:cast(Pid, {call_async, From, Path, Member, Types, Args, Timeout}).
 
 -spec send(ebus:proxy(), string()) -> ok | {error, term()}.
 send(Pid, Member) ->
@@ -161,7 +226,7 @@ handle_call({call, Path, Member, Types, Args, Timeout}, From, State=#state{}) ->
                 ok ->
                     case ebus:call(State#state.bus, Msg, self(), Timeout) of
                         {ok, Serial} ->
-                            NewCalls = maps:put(Serial, From, State#state.calls),
+                            NewCalls = maps:put(Serial, {call, From}, State#state.calls),
                             {noreply, State#state{calls=NewCalls}};
                         {error, Reason} ->
                             {reply, {error, Reason}, State}
@@ -206,6 +271,25 @@ handle_call(Msg, _From, State=#state{}) ->
     {noreply, State}.
 
 
+handle_cast({call_async, From={Pid, Key}, Path, Member, Types, Args, Timeout}, State=#state{}) ->
+    case ebus_message:new_call(State#state.dest, Path, Member) of
+        {ok, Msg} ->
+            case ebus_message:append_args(Msg, Types, Args) of
+                ok ->
+                    case ebus:call(State#state.bus, Msg, self(), Timeout) of
+                        {ok, Serial} ->
+                            NewCalls = maps:put(Serial, {call_async, From}, State#state.calls),
+                            {noreply, State#state{calls=NewCalls}};
+                        {error, Reason} ->
+                            Pid ! {Key, {error, Reason}}
+                    end;
+                {error, Reason} ->
+                    Pid ! {Key, {error, Reason}}
+            end;
+        {error, Reason} ->
+            Pid ! {Key, {error, Reason}}
+    end;
+
 handle_cast({remove_signal_handler, SignalID, Handler, Info}, State=#state{}) ->
     {noreply, signal_handler_remove(SignalID, Handler, Info, State)};
 
@@ -214,16 +298,19 @@ handle_cast(Msg, State=#state{}) ->
     {noreply, State}.
 
 handle_info({handle_reply, Msg}, State=#state{}) ->
+    Reply = case ebus_message:type(Msg) of
+                error ->
+                    ebus_message:error(Msg);
+                reply ->
+                    ebus_message:args(Msg);
+                Other ->
+                    {error, {bad_message, Other}}
+            end,
     case maps:take(ebus_message:reply_serial(Msg), State#state.calls) of
-        {From, NewCalls} ->
-            Reply = case ebus_message:type(Msg) of
-                        error ->
-                            ebus_message:error(Msg);
-                        reply ->
-                            ebus_message:args(Msg);
-                        Other ->
-                            {error, {bad_message, Other}}
-                    end,
+        {{call_async, {Pid, Key}}, NewCalls} ->
+            Pid ! {Key, Reply},
+            {noreply, State#state{calls=NewCalls}};
+        {{call, From}, NewCalls} ->
             gen_server:reply(From, Reply),
             {noreply, State#state{calls=NewCalls}};
         error ->
