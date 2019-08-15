@@ -5,11 +5,12 @@
 
 -export([all/0, init_per_suite/1, end_per_suite/1,
          init_per_testcase/2, end_per_testcase/2]).
--export([bus_test/1, call_test/1, signal_test/1]).
+-export([bus_test/1, call_test/1, call_async_test/1, signal_test/1]).
 
 all() ->
     [ bus_test,
       call_test,
+      call_async_test,
       signal_test
     ].
 
@@ -66,7 +67,7 @@ call_test(Config) ->
                        {noreply, State}
                end),
 
-    {ok, _Obj} = ebus_object:start(B, Path, call_test, [init_arg], []),
+    {ok, Obj} = ebus_object:start(B, Path, call_test, [init_arg], []),
     %% Validate that init was called with the start arguments
     ?assert(meck:called(call_test, init, [[init_arg]])),
 
@@ -78,8 +79,75 @@ call_test(Config) ->
     ?assertEqual({ok, [true]}, ebus_proxy:call(Proxy, Path, "True")),
     ?assertEqual({error, timeout}, ebus_proxy:call(Proxy, Path, "Timeout", [], [], 1000)),
 
+    ?assertEqual(ok, ebus_object:stop(Obj, normal)),
+
     meck:validate(call_test),
     meck:unload(call_test),
+
+    ok.
+
+call_async_test(Config) ->
+    B = ?config(bus, Config),
+
+    %% Mock up a service
+    Dest = "com.helium.async_test",
+    ?assertEqual(ok, ebus:request_name(B, Dest, [{replace_existing, true}])),
+
+    Path = "/",
+    ?assertEqual(ok, ebus:add_match(B, #{path => Path})),
+
+    meck:new(call_async_test, [non_strict]),
+    meck:expect(call_async_test, init,
+                fun([init_arg]) -> {ok, init_state};
+                   (A) -> erlang:error({bad_init, A})
+                end),
+    meck:expect(call_async_test, handle_message,
+               fun("Echo", Msg, State) ->
+                       ?assertEqual(Path, ebus_message:path(Msg)),
+                       {ok, [Str]} = ebus_message:args(Msg),
+                       {reply, [string], [Str], State};
+                  ("True", _Msg, State) ->
+                       {reply, [bool], [true], State};
+                  ("Timeout", _Msg, State) ->
+                       {noreply, State}
+               end),
+
+    {ok, Obj} = ebus_object:start(B, Path, call_async_test, [init_arg], []),
+    %% Validate that init was called with the start arguments
+    ?assert(meck:called(call_async_test, init, [[init_arg]])),
+
+    %% Now call the Echo service
+    {ok, Proxy} = ebus_proxy:start(B, Dest, []),
+    Args = ["Hello World"],
+    ebus_proxy:call_async(Proxy, {self(), echo_result}, Path, "Echo", [string], Args),
+    receive
+        {echo_result, {ok, Args}} -> ok;
+        Other -> ct:pal("~p", [Other])
+    after 5000 -> erlang:exit(timeout_call_async_echo)
+    end,
+
+    ebus_proxy:call_async(Proxy, {self(), no_path_true_result}, "True"),
+    receive
+        {no_path_true_result, {ok, [true]}} -> ok
+    after 5000 -> erlang:exit(timeout_call_async_no_path_true)
+    end,
+
+    ebus_proxy:call_async(Proxy, {self(), path_true_result}, Path, "True"),
+    receive
+        {path_true_result, {ok, [true]}} -> ok
+    after 5000 -> erlang:exit(timeout_call_async_path_true)
+    end,
+
+    ebus_proxy:call_async(Proxy, {self(), timeout_result}, Path, "Timeout", [], [], 1000),
+    receive
+        {timeout_result, {error, timeout}} -> ok
+    after 5000 -> erlang:exit(timeout_call_async_timeout)
+    end,
+
+    ?assertEqual(ok, ebus_object:stop(Obj, normal)),
+
+    meck:validate(call_async_test),
+    meck:unload(call_async_test),
 
     ok.
 
