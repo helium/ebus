@@ -25,7 +25,9 @@ ifeq ($(UNAME_SYS), Darwin)
 else ifeq ($(UNAME_SYS), FreeBSD)
 	CC ?= cc
 	CFLAGS ?= -O3 -std=c99 -finline-functions -Wall -Wmissing-prototypes
+	CFLAGS += -I /usr/local/include/dbus-1.0 -I /usr/local/lib/dbus-1.0/include
 	CXXFLAGS ?= -O3 -finline-functions -Wall
+	LDFLAGS ?= -L /usr/local/lib
 else ifeq ($(UNAME_SYS), Linux)
 	CC ?= gcc
 	MACHINE ?= $(shell $(CC) -dumpmachine)
