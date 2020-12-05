@@ -357,8 +357,8 @@ signal_handler_add(Path, Member, {IFace, Name}, Handler, Info, State=#state{sign
             case ebus:add_filter(State#state.bus, self(), Rule) of
                 {ok, SignalID} ->
                     GroupID = signal_group_id(Path, Member),
-                    pg2:create(GroupID),
-                    pg2:join(GroupID, Handler),
+                    pg:create(GroupID),
+                    pg:join(GroupID, Handler),
                     NewSigHandlers = maps:put(SignalID,
                                               #handler_entry{path=Path, member=Member, rule=Rule,
                                                              handlers=[{Handler, Info}]},
@@ -368,7 +368,7 @@ signal_handler_add(Path, Member, {IFace, Name}, Handler, Info, State=#state{sign
                     {error, Error}
             end;
         [{SignalID, Entry=#handler_entry{handlers=Handlers}}] ->
-            pg2:join(signal_group_id(Path, Member), Handler),
+            pg:join(signal_group_id(Path, Member), Handler),
             NewSigHandlers = maps:put(SignalID,
                                       Entry#handler_entry{handlers=[{Handler, Info} | Handlers]},
                                       SigHandlers),
@@ -384,11 +384,11 @@ signal_handler_remove(SignalID, Handler, Info, State=#state{signal_handlers=SigH
                 [] ->
                     ebus:remove_match(State#state.bus, Rule),
                     ebus:remove_filter(State#state.bus, SignalID),
-                    pg2:delete(signal_group_id(Path, Member)),
+                    pg:delete(signal_group_id(Path, Member)),
                     NewSigHandlers = maps:remove(SignalID, SigHandlers),
                     State#state{signal_handlers=NewSigHandlers};
                 NewHandlers ->
-                    pg2:leave(signal_group_id(Path, Member), Handler),
+                    pg:leave(signal_group_id(Path, Member), Handler),
                     NewSigHandlers = maps:put(SignalID,
                                               Entry#handler_entry{handlers=NewHandlers},
                                               SigHandlers),
