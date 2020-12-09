@@ -2,6 +2,7 @@ language: erlang
 
 otp_release:
   - 21.1
+  - 23.0
 
 addons:
   apt:
