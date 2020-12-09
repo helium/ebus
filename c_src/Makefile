@@ -39,7 +39,7 @@ endif
 CFLAGS += -fPIC -I $(ERTS_INCLUDE_DIR) -I $(ERL_INTERFACE_INCLUDE_DIR)
 CXXFLAGS += -fPIC -I $(ERTS_INCLUDE_DIR) -I $(ERL_INTERFACE_INCLUDE_DIR)
 
-LDLIBS += -L $(ERL_INTERFACE_LIB_DIR) -lerl_interface -lei -ldbus-1
+LDLIBS += -L $(ERL_INTERFACE_LIB_DIR) -ldbus-1
 LDFLAGS += -shared
 
 # Verbosity.

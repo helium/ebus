@@ -33,6 +33,20 @@
 
 -define(PROXY_SEND_TIMEOUT, 5000).
 
+-if(?OTP_RELEASE > 22).
+-define(PG_START, pg:start_link(?MODULE)).
+-define(PG_CREATE(_Group), ok).
+-define(PG_JOIN(Group, Pid), pg:join(?MODULE, Group, Pid)).
+-define(PG_LEAVE(Group, Pid), pg:leave(?MODULE, Group, Pid)).
+-define(PG_DELETE(Group), pg:leave(?MODULE, Group, pg:get_members(Group))).
+-else.
+-define(PG_START, ok).
+-define(PG_CREATE(Group), pg2:create(Group)).
+-define(PG_JOIN(Group, Pid), pg2:join(Group, Pid)).
+-define(PG_LEAVE(Group, Pid), pg2:leave(Group, Pid)).
+-define(PG_DELETE(Group), pg2:delete(Group)).
+-endif.
+
 %% API
 %%
 
@@ -215,6 +229,7 @@ start_link(Bus, Dest, Options) ->
     gen_server:start_link(?MODULE, [Bus, Dest], Options).
 
 init([Bus, Dest]) ->
+    ?PG_START,
     {ok, #state{bus=Bus, dest=Dest}}.
 
 
@@ -357,8 +372,8 @@ signal_handler_add(Path, Member, {IFace, Name}, Handler, Info, State=#state{sign
             case ebus:add_filter(State#state.bus, self(), Rule) of
                 {ok, SignalID} ->
                     GroupID = signal_group_id(Path, Member),
-                    pg2:create(GroupID),
-                    pg2:join(GroupID, Handler),
+                    ?PG_CREATE(GroupID),
+                    ?PG_JOIN(GroupID, Handler),
                     NewSigHandlers = maps:put(SignalID,
                                               #handler_entry{path=Path, member=Member, rule=Rule,
                                                              handlers=[{Handler, Info}]},
@@ -368,7 +383,7 @@ signal_handler_add(Path, Member, {IFace, Name}, Handler, Info, State=#state{sign
                     {error, Error}
             end;
         [{SignalID, Entry=#handler_entry{handlers=Handlers}}] ->
-            pg2:join(signal_group_id(Path, Member), Handler),
+            ?PG_JOIN(signal_group_id(Path, Member), Handler),
             NewSigHandlers = maps:put(SignalID,
                                       Entry#handler_entry{handlers=[{Handler, Info} | Handlers]},
                                       SigHandlers),
@@ -384,11 +399,11 @@ signal_handler_remove(SignalID, Handler, Info, State=#state{signal_handlers=SigH
                 [] ->
                     ebus:remove_match(State#state.bus, Rule),
                     ebus:remove_filter(State#state.bus, SignalID),
-                    pg2:delete(signal_group_id(Path, Member)),
+                    ?PG_DELETE(signal_group_id(Path, Member)),
                     NewSigHandlers = maps:remove(SignalID, SigHandlers),
                     State#state{signal_handlers=NewSigHandlers};
                 NewHandlers ->
-                    pg2:leave(signal_group_id(Path, Member), Handler),
+                    ?PG_LEAVE(signal_group_id(Path, Member), Handler),
                     NewSigHandlers = maps:put(SignalID,
                                               Entry#handler_entry{handlers=NewHandlers},
                                               SigHandlers),
