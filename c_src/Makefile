@@ -19,15 +19,17 @@ UNAME_SYS := $(shell uname -s)
 ifeq ($(UNAME_SYS), Darwin)
 	CC ?= cc
 	CFLAGS ?= -O3 -std=c99 -arch x86_64 -finline-functions -Wall -Wmissing-prototypes
-	CFLAGS += -I /usr/local/include/dbus-1.0 -I /usr/local/lib/dbus-1.0/include
+	CFLAGS += $(shell pkg-config --cflags dbus-1)
 	CXXFLAGS ?= -O3 -arch x86_64 -finline-functions -Wall
 	LDFLAGS ?= -arch x86_64 -flat_namespace -undefined suppress
+	LDFLAGS += $(shell pkg-config --libs dbus-1)
 else ifeq ($(UNAME_SYS), FreeBSD)
 	CC ?= cc
 	CFLAGS ?= -O3 -std=c99 -finline-functions -Wall -Wmissing-prototypes
-	CFLAGS += -I /usr/local/include/dbus-1.0 -I /usr/local/lib/dbus-1.0/include
+	CFLAGS += $(shell pkg-config --cflags dbus-1)
 	CXXFLAGS ?= -O3 -finline-functions -Wall
 	LDFLAGS ?= -L /usr/local/lib
+	LDFLAGS += $(shell pkg-config --libs dbus-1)
 else ifeq ($(UNAME_SYS), Linux)
 	CC ?= gcc
 	MACHINE ?= $(shell $(CC) -dumpmachine)
