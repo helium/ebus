@@ -1,7 +1,7 @@
 -module(ebus_nif).
 
 -define(APPNAME, ebus).
--define(LIBNAME, 'ebus').
+-define(LIBNAME, 'libebus').
 
 -on_load(init/0).
 
